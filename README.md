@@ -1,12 +1,12 @@
 # TVDB Proxy
 
-A high-performance caching proxy for TVDB API v4 that stores data locally using Redis and PostgreSQL, protecting your API key and providing blazing-fast responses.
+A high-performance caching proxy for TVDB API v4 with **database-backed API key management** and local data storage using Redis and PostgreSQL, protecting your API key and providing blazing-fast responses.
 
 ## Features
 
 - 🚀 **High Performance**: Redis caching with sub-100ms response times
-- 🔒 **API Key Protection**: Secure local authentication with JWT tokens
-- 📦 **Complete Data Storage**: PostgreSQL for persistent storage
+- 🔒 **Database-Backed API Keys**: PostgreSQL-stored API keys with full CRUD management
+- 📦 **Complete Data Storage**: PostgreSQL for persistent TVDB data and authentication
 - 🔄 **Auto-Sync**: Background workers keep data up-to-date
 - 🛡️ **Rate Limiting**: Configurable rate limiting per client
 - 🎯 **Smart Caching**: Intelligent cache invalidation and prefetching
@@ -153,9 +153,9 @@ GET /api/v1/search/all?q=batman
 
 ### Components
 
-- **API Gateway**: FastAPI application with authentication and rate limiting
-- **Redis**: Fast caching layer for frequently accessed data
-- **PostgreSQL**: Persistent storage for complete TVDB dataset
+- **API Gateway**: FastAPI application with database-backed authentication and rate limiting
+- **Redis**: Fast caching layer for frequently accessed TVDB data
+- **PostgreSQL**: Primary database for API keys, user management, and persistent TVDB data
 - **Celery Workers**: Background synchronization and cache management
 - **TVDB Client**: Enhanced wrapper around official Python library
 
@@ -175,41 +175,111 @@ GET /api/v1/search/all?q=batman
 | `CACHE_TTL_STATIC_HOURS` | Static data cache TTL | 24 |
 | `CACHE_TTL_DYNAMIC_HOURS` | Dynamic data cache TTL | 1 |
 
+## Database Migration Complete ✅
+
+**The TVDB Proxy has been migrated to use full database storage for API key management.**
+
+### What's New
+- **PostgreSQL Storage**: All API keys are now stored in the database (no more config files)
+- **Admin REST API**: Full CRUD operations for API key management via HTTP endpoints
+- **Usage Tracking**: Real-time request counting and statistics per key
+- **Enhanced Security**: Database-backed authentication with audit trails
+- **Key Rotation**: Secure API key rotation without service interruption
+
 ## API Key Management
 
 ### Overview
 
-The TVDB Proxy uses API keys to authenticate clients and control access. Each API key has configurable rate limits and can be enabled/disabled independently.
+The TVDB Proxy uses a sophisticated database-backed API key management system to authenticate clients and control access. Each API key has configurable rate limits, usage tracking, and can be managed via REST API endpoints.
+
+### Admin Authentication
+
+To manage API keys, you need admin access using the super admin key:
+
+```bash
+# Default admin key (CHANGE IN PRODUCTION!)
+ADMIN_KEY="admin-super-key-change-in-production"
+```
 
 ### Creating New API Keys
 
-API keys are currently managed in `app/auth.py`. To add a new API key:
+Create new API keys via the admin REST API:
 
-1. **Generate a secure API key**:
 ```bash
-python -c "import secrets; print('api-key-' + secrets.token_urlsafe(16))"
-# Example output: api-key-xPgW0XBgOBjzcVidtJVSM98JZer1l
+curl -X POST "http://localhost:8000/api/v1/admin/api-keys" \
+  -H "Authorization: Bearer admin-super-key-change-in-production" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Production Client",
+    "description": "Main production API client",
+    "rate_limit": 500,
+    "active": true
+  }'
 ```
 
-2. **Add the key to VALID_API_KEYS dictionary** in `app/auth.py`:
-```python
-VALID_API_KEYS = {
-    "demo-key-1": {
-        "name": "Demo Client 1",
-        "rate_limit": 100,
-        "active": True
-    },
-    "your-new-api-key": {
-        "name": "Production Client",
-        "rate_limit": 500,
-        "active": True
-    }
+**Response** (includes the full API key only once):
+```json
+{
+  "id": 4,
+  "name": "Production Client",
+  "description": "Main production API client",
+  "active": true,
+  "rate_limit": 500,
+  "key_preview": "...xyz",
+  "key": "api-abc123def456ghi789...",
+  "total_requests": 0,
+  "created_at": "2024-01-01T00:00:00Z"
 }
 ```
 
-3. **Restart the services**:
+### Managing Existing API Keys
+
+#### List All API Keys
+
 ```bash
-docker-compose restart api worker scheduler
+curl -H "Authorization: Bearer admin-super-key-change-in-production" \
+  "http://localhost:8000/api/v1/admin/api-keys?page=1&per_page=20"
+```
+
+#### Get Specific API Key Details
+
+```bash
+curl -H "Authorization: Bearer admin-super-key-change-in-production" \
+  "http://localhost:8000/api/v1/admin/api-keys/4"
+```
+
+#### Update API Key
+
+```bash
+curl -X PUT "http://localhost:8000/api/v1/admin/api-keys/4" \
+  -H "Authorization: Bearer admin-super-key-change-in-production" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Updated Client Name",
+    "rate_limit": 1000,
+    "active": true
+  }'
+```
+
+#### Rotate API Key (Generate New Key)
+
+```bash
+curl -X POST "http://localhost:8000/api/v1/admin/api-keys/4/rotate" \
+  -H "Authorization: Bearer admin-super-key-change-in-production"
+```
+
+#### Delete API Key
+
+```bash
+curl -X DELETE "http://localhost:8000/api/v1/admin/api-keys/4" \
+  -H "Authorization: Bearer admin-super-key-change-in-production"
+```
+
+#### Get Usage Statistics
+
+```bash
+curl -H "Authorization: Bearer admin-super-key-change-in-production" \
+  "http://localhost:8000/api/v1/admin/api-keys/stats/usage"
 ```
 
 ### API Key Configuration Options
@@ -219,119 +289,167 @@ Each API key supports the following configuration options:
 | Option | Type | Description | Example |
 |--------|------|-------------|---------|
 | `name` | string | Human-readable client identifier | "Production App", "Mobile Client" |
-| `rate_limit` | integer | Maximum requests per minute | 100, 500, 1000 |
+| `description` | string | Optional description of the key's purpose | "Main production API client" |
+| `rate_limit` | integer | Maximum requests per minute (1-10000) | 100, 500, 1000 |
 | `active` | boolean | Whether the key is enabled | true, false |
+| `expires_at` | datetime | Optional expiration date | "2024-12-31T23:59:59Z" |
+| `created_by` | string | Admin who created the key | "admin", "john.doe" |
 
-### Example API Key Configurations
+### API Key Features
 
-```python
-VALID_API_KEYS = {
-    # High-volume production client
-    "prod-api-key-abc123": {
-        "name": "Production API Client",
-        "rate_limit": 1000,
-        "active": True
-    },
-    
-    # Mobile app with moderate usage
-    "mobile-app-xyz789": {
-        "name": "Mobile Application",
-        "rate_limit": 200,
-        "active": True
-    },
-    
-    # Development/testing key
-    "dev-testing-key": {
-        "name": "Development Environment",
-        "rate_limit": 50,
-        "active": True
-    },
-    
-    # Disabled key (for emergency shutdown)
-    "emergency-disabled": {
-        "name": "Emergency Disabled Client",
-        "rate_limit": 100,
-        "active": False
-    }
-}
+- **Automatic Key Generation**: Cryptographically secure keys with `api-` prefix
+- **Usage Tracking**: Tracks total requests and last used timestamp
+- **Rate Limiting**: Per-key rate limits with configurable requests per minute
+- **Expiration**: Optional key expiration dates
+- **Security**: Keys are never fully displayed after creation (only preview)
+- **Audit Trail**: Tracks creation date, creator, and usage statistics
+
+### Example API Key Creation
+
+```bash
+# High-volume production client
+curl -X POST "http://localhost:8000/api/v1/admin/api-keys" \
+  -H "Authorization: Bearer admin-super-key-change-in-production" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Production API Client",
+    "description": "Main production client for web application",
+    "rate_limit": 1000,
+    "active": true
+  }'
+
+# Mobile app with moderate usage
+curl -X POST "http://localhost:8000/api/v1/admin/api-keys" \
+  -H "Authorization: Bearer admin-super-key-change-in-production" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Mobile Application",
+    "description": "iOS and Android mobile apps",
+    "rate_limit": 200,
+    "active": true
+  }'
+
+# Development/testing key with expiration
+curl -X POST "http://localhost:8000/api/v1/admin/api-keys" \
+  -H "Authorization: Bearer admin-super-key-change-in-production" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Development Environment",
+    "description": "Temporary key for development testing",
+    "rate_limit": 50,
+    "active": true,
+    "expires_at": "2024-12-31T23:59:59Z"
+  }'
 ```
 
 ### Default Demo Keys
 
-The system comes with demo keys for testing (remove in production):
+The system initializes with demo keys for testing (remove in production):
 
 - `demo-key-1`: Demo Client 1, 100 requests/minute
-- `demo-key-2`: Demo Client 2, 200 requests/minute
+- `demo-key-2`: Demo Client 2, 200 requests/minute  
+- `admin-super-key-change-in-production`: Super Admin Key, 1000 requests/minute
+
+Run the initialization script to create demo keys:
+
+```bash
+docker-compose exec api python scripts/init_demo_keys.py
+```
 
 ### Rate Limiting Details
 
-- **Per-Key Limits**: Each API key has its own rate limit (requests per minute)
-- **Global Limits**: Additional global rate limiting can be configured via `RATE_LIMIT_REQUESTS_PER_MINUTE`
-- **Burst Handling**: Short bursts above the rate limit are allowed via `RATE_LIMIT_BURST` setting
+- **Per-Key Limits**: Each API key has its own configurable rate limit (1-10000 requests per minute)
+- **Global Limits**: Additional global rate limiting configured via `RATE_LIMIT_REQUESTS_PER_MINUTE`
+- **Burst Handling**: Short bursts above rate limit allowed via `RATE_LIMIT_BURST` setting
+- **Usage Tracking**: Real-time tracking of request counts and last used timestamps
 - **Rate Limit Headers**: API responses include rate limit headers for monitoring
 
 ### Production Best Practices
 
-1. **Remove Demo Keys**:
-```python
-# Remove these in production
-VALID_API_KEYS = {
-    # "demo-key-1": {...},  # Remove
-    # "demo-key-2": {...},  # Remove
-    "your-production-keys": {...}
-}
+1. **Change Default Admin Key**:
+```bash
+# Create new admin key
+curl -X POST "http://localhost:8000/api/v1/admin/api-keys" \
+  -H "Authorization: Bearer admin-super-key-change-in-production" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Production Admin Key",
+    "description": "Production administrative key",
+    "rate_limit": 1000,
+    "active": true
+  }'
+
+# Then disable or delete the default admin key
+curl -X PUT "http://localhost:8000/api/v1/admin/api-keys/3" \
+  -H "Authorization: Bearer your-new-admin-key" \
+  -H "Content-Type: application/json" \
+  -d '{"active": false}'
 ```
 
-2. **Use Secure Key Generation**:
+2. **Remove Demo Keys**:
 ```bash
-# Generate cryptographically secure keys
-python -c "import secrets; print(secrets.token_urlsafe(32))"
+# Disable demo keys
+curl -X DELETE "http://localhost:8000/api/v1/admin/api-keys/1" \
+  -H "Authorization: Bearer your-admin-key"
+curl -X DELETE "http://localhost:8000/api/v1/admin/api-keys/2" \
+  -H "Authorization: Bearer your-admin-key"
 ```
 
 3. **Set Appropriate Rate Limits**:
 - Start conservative (100-200 req/min) and increase as needed
-- Monitor usage and adjust based on client requirements
-- Consider peak usage patterns
+- Monitor usage via admin endpoints and adjust accordingly
+- Consider peak usage patterns and client requirements
 
 4. **Key Naming Convention**:
-```python
-"client-environment-purpose-randomstring"
-# Examples:
-"myapp-prod-api-x1y2z3"
-"mobile-staging-sync-a4b5c6"
+```bash
+# Use descriptive, environment-specific names
+"Production Web Application"
+"Mobile App - iOS"
+"Development Environment"
+"Integration Testing"
 ```
 
 ### Administrative Operations
 
 **Disable a key temporarily**:
-```python
-"problematic-key": {
-    "name": "Problematic Client",
-    "rate_limit": 100,
-    "active": False  # Disable without removing
-}
+```bash
+curl -X PUT "http://localhost:8000/api/v1/admin/api-keys/4" \
+  -H "Authorization: Bearer admin-super-key-change-in-production" \
+  -H "Content-Type: application/json" \
+  -d '{"active": false}'
 ```
 
 **Monitor key usage**:
 ```bash
-# Check API logs for rate limiting
-docker-compose logs api | grep "rate_limit"
+# Get comprehensive usage statistics
+curl -H "Authorization: Bearer admin-super-key-change-in-production" \
+  "http://localhost:8000/api/v1/admin/api-keys/stats/usage"
 
-# Check Redis for cached rate limit data
-docker-compose exec redis redis-cli keys "*rate_limit*"
+# Check specific key usage
+curl -H "Authorization: Bearer admin-super-key-change-in-production" \
+  "http://localhost:8000/api/v1/admin/api-keys/4"
+
+# Search keys by name
+curl -H "Authorization: Bearer admin-super-key-change-in-production" \
+  "http://localhost:8000/api/v1/admin/api-keys?search=production"
 ```
 
 ### Testing New API Keys
 
-1. **Get JWT token**:
+1. **Test API key directly**:
+```bash
+# Use API key directly (recommended)
+curl -H "Authorization: Bearer your-new-api-key" \
+  "http://localhost:8000/api/v1/series/83268"
+```
+
+2. **Or get JWT token** (alternative):
 ```bash
 curl -X POST "http://localhost:8000/api/v1/auth/token" \
   -H "Content-Type: application/json" \
   -d '{"api_key": "your-new-api-key"}'
-```
 
-2. **Test API access**:
-```bash
+# Use token
 TOKEN="your-jwt-token-here"
 curl -H "Authorization: Bearer $TOKEN" \
   "http://localhost:8000/api/v1/series/83268"
@@ -341,36 +459,49 @@ curl -H "Authorization: Bearer $TOKEN" \
 ```bash
 # Make rapid requests to test rate limiting
 for i in {1..10}; do
-  curl -H "Authorization: Bearer $TOKEN" \
+  curl -H "Authorization: Bearer your-new-api-key" \
     "http://localhost:8000/api/v1/series/83268" &
 done
 ```
 
-### Migration to Database Storage
+4. **Check usage tracking**:
+```bash
+# View updated usage statistics
+curl -H "Authorization: Bearer admin-super-key-change-in-production" \
+  "http://localhost:8000/api/v1/admin/api-keys/4"
+```
 
-For large-scale deployments, consider migrating from file-based to database-based API key storage:
+### Database-Backed Features
 
-1. Create API keys table in PostgreSQL
-2. Update `verify_api_key()` function to query database
-3. Add API key management endpoints
-4. Implement key rotation and expiration
+The system now includes advanced database-backed API key management:
+
+✅ **Already Implemented**:
+- PostgreSQL storage for all API keys
+- REST API endpoints for full CRUD operations  
+- Real-time usage tracking and statistics
+- Secure key generation and rotation
+- Rate limiting per key
+- Key expiration and activation controls
+- Admin authentication and authorization
+- Audit trail with creation timestamps
 
 ### Troubleshooting
 
 **Invalid API key errors**:
-- Verify key exists in `VALID_API_KEYS`
-- Check that `active: true`
-- Restart services after changes
+- Verify key exists in database via admin endpoints
+- Check that `active: true` using admin API
+- Ensure key hasn't expired
 
 **Rate limiting issues**:
-- Check key's `rate_limit` setting
-- Monitor Redis for rate limit data
-- Verify global rate limit settings
+- Check key's `rate_limit` setting via admin API
+- Monitor usage stats via `/admin/api-keys/stats/usage`
+- Verify global rate limit settings in environment
 
 **Authentication failures**:
 - Ensure proper Bearer token format
 - Check JWT expiration (default 7 days)
-- Verify SECRET_KEY consistency
+- Verify SECRET_KEY consistency across services
+- Check admin key permissions for management operations
 
 ## Deployment
 

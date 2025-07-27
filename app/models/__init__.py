@@ -8,6 +8,7 @@ from .artwork import Artwork
 from .genre import Genre
 from .language import Language
 from .company import Company
+from .api_key import ApiKey
 from .static_data import (
     ArtworkType,
     AwardCategory,
@@ -32,6 +33,7 @@ __all__ = [
     "Genre",
     "Language",
     "Company",
+    "ApiKey",
     "ArtworkType",
     "AwardCategory",
     "ContentRating",
