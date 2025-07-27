@@ -175,12 +175,202 @@ GET /api/v1/search/all?q=batman
 | `CACHE_TTL_STATIC_HOURS` | Static data cache TTL | 24 |
 | `CACHE_TTL_DYNAMIC_HOURS` | Dynamic data cache TTL | 1 |
 
-### API Keys
+## API Key Management
 
-Default demo API keys (change in production):
+### Overview
 
-- `demo-key-1`: 100 requests/minute
-- `demo-key-2`: 200 requests/minute
+The TVDB Proxy uses API keys to authenticate clients and control access. Each API key has configurable rate limits and can be enabled/disabled independently.
+
+### Creating New API Keys
+
+API keys are currently managed in `app/auth.py`. To add a new API key:
+
+1. **Generate a secure API key**:
+```bash
+python -c "import secrets; print('api-key-' + secrets.token_urlsafe(16))"
+# Example output: api-key-xPgW0XBgOBjzcVidtJVSM98JZer1l
+```
+
+2. **Add the key to VALID_API_KEYS dictionary** in `app/auth.py`:
+```python
+VALID_API_KEYS = {
+    "demo-key-1": {
+        "name": "Demo Client 1",
+        "rate_limit": 100,
+        "active": True
+    },
+    "your-new-api-key": {
+        "name": "Production Client",
+        "rate_limit": 500,
+        "active": True
+    }
+}
+```
+
+3. **Restart the services**:
+```bash
+docker-compose restart api worker scheduler
+```
+
+### API Key Configuration Options
+
+Each API key supports the following configuration options:
+
+| Option | Type | Description | Example |
+|--------|------|-------------|---------|
+| `name` | string | Human-readable client identifier | "Production App", "Mobile Client" |
+| `rate_limit` | integer | Maximum requests per minute | 100, 500, 1000 |
+| `active` | boolean | Whether the key is enabled | true, false |
+
+### Example API Key Configurations
+
+```python
+VALID_API_KEYS = {
+    # High-volume production client
+    "prod-api-key-abc123": {
+        "name": "Production API Client",
+        "rate_limit": 1000,
+        "active": True
+    },
+    
+    # Mobile app with moderate usage
+    "mobile-app-xyz789": {
+        "name": "Mobile Application",
+        "rate_limit": 200,
+        "active": True
+    },
+    
+    # Development/testing key
+    "dev-testing-key": {
+        "name": "Development Environment",
+        "rate_limit": 50,
+        "active": True
+    },
+    
+    # Disabled key (for emergency shutdown)
+    "emergency-disabled": {
+        "name": "Emergency Disabled Client",
+        "rate_limit": 100,
+        "active": False
+    }
+}
+```
+
+### Default Demo Keys
+
+The system comes with demo keys for testing (remove in production):
+
+- `demo-key-1`: Demo Client 1, 100 requests/minute
+- `demo-key-2`: Demo Client 2, 200 requests/minute
+
+### Rate Limiting Details
+
+- **Per-Key Limits**: Each API key has its own rate limit (requests per minute)
+- **Global Limits**: Additional global rate limiting can be configured via `RATE_LIMIT_REQUESTS_PER_MINUTE`
+- **Burst Handling**: Short bursts above the rate limit are allowed via `RATE_LIMIT_BURST` setting
+- **Rate Limit Headers**: API responses include rate limit headers for monitoring
+
+### Production Best Practices
+
+1. **Remove Demo Keys**:
+```python
+# Remove these in production
+VALID_API_KEYS = {
+    # "demo-key-1": {...},  # Remove
+    # "demo-key-2": {...},  # Remove
+    "your-production-keys": {...}
+}
+```
+
+2. **Use Secure Key Generation**:
+```bash
+# Generate cryptographically secure keys
+python -c "import secrets; print(secrets.token_urlsafe(32))"
+```
+
+3. **Set Appropriate Rate Limits**:
+- Start conservative (100-200 req/min) and increase as needed
+- Monitor usage and adjust based on client requirements
+- Consider peak usage patterns
+
+4. **Key Naming Convention**:
+```python
+"client-environment-purpose-randomstring"
+# Examples:
+"myapp-prod-api-x1y2z3"
+"mobile-staging-sync-a4b5c6"
+```
+
+### Administrative Operations
+
+**Disable a key temporarily**:
+```python
+"problematic-key": {
+    "name": "Problematic Client",
+    "rate_limit": 100,
+    "active": False  # Disable without removing
+}
+```
+
+**Monitor key usage**:
+```bash
+# Check API logs for rate limiting
+docker-compose logs api | grep "rate_limit"
+
+# Check Redis for cached rate limit data
+docker-compose exec redis redis-cli keys "*rate_limit*"
+```
+
+### Testing New API Keys
+
+1. **Get JWT token**:
+```bash
+curl -X POST "http://localhost:8000/api/v1/auth/token" \
+  -H "Content-Type: application/json" \
+  -d '{"api_key": "your-new-api-key"}'
+```
+
+2. **Test API access**:
+```bash
+TOKEN="your-jwt-token-here"
+curl -H "Authorization: Bearer $TOKEN" \
+  "http://localhost:8000/api/v1/series/83268"
+```
+
+3. **Verify rate limiting**:
+```bash
+# Make rapid requests to test rate limiting
+for i in {1..10}; do
+  curl -H "Authorization: Bearer $TOKEN" \
+    "http://localhost:8000/api/v1/series/83268" &
+done
+```
+
+### Migration to Database Storage
+
+For large-scale deployments, consider migrating from file-based to database-based API key storage:
+
+1. Create API keys table in PostgreSQL
+2. Update `verify_api_key()` function to query database
+3. Add API key management endpoints
+4. Implement key rotation and expiration
+
+### Troubleshooting
+
+**Invalid API key errors**:
+- Verify key exists in `VALID_API_KEYS`
+- Check that `active: true`
+- Restart services after changes
+
+**Rate limiting issues**:
+- Check key's `rate_limit` setting
+- Monitor Redis for rate limit data
+- Verify global rate limit settings
+
+**Authentication failures**:
+- Ensure proper Bearer token format
+- Check JWT expiration (default 7 days)
+- Verify SECRET_KEY consistency
 
 ## Deployment
 
@@ -191,7 +381,7 @@ Default demo API keys (change in production):
 python -c "import secrets; print(secrets.token_urlsafe(32))"
 ```
 
-2. **Update API keys** in `app/auth.py`
+2. **Configure production API keys** (see [API Key Management](#api-key-management) section)
 
 3. **Configure resource limits** in `docker-compose.yml`
 
