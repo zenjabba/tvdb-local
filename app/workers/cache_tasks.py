@@ -83,7 +83,7 @@ def prefetch_popular_content(self):
             
             # Prefetch series data
             for i, series in enumerate(popular_series):
-                await _prefetch_series_data(series.tvdb_id)
+                asyncio.run(_prefetch_series_data(series.tvdb_id))
                 progress = 20 + int((i / len(popular_series)) * 30)
                 self.update_state(state='PROGRESS', meta={'current': progress, 'total': 100, 'status': f'Prefetching series {i+1}/{len(popular_series)}'})
             
@@ -93,7 +93,7 @@ def prefetch_popular_content(self):
             
             # Prefetch movie data
             for i, movie in enumerate(popular_movies):
-                await _prefetch_movie_data(movie.tvdb_id)
+                asyncio.run(_prefetch_movie_data(movie.tvdb_id))
                 progress = 50 + int((i / len(popular_movies)) * 30)
                 self.update_state(state='PROGRESS', meta={'current': progress, 'total': 100, 'status': f'Prefetching movie {i+1}/{len(popular_movies)}'})
             
@@ -103,7 +103,7 @@ def prefetch_popular_content(self):
             
             # Prefetch episode data
             for i, episode in enumerate(trending_episodes):
-                await _prefetch_episode_data(episode.tvdb_id, episode.series_id)
+                asyncio.run(_prefetch_episode_data(episode.tvdb_id, episode.series_id))
                 if i % 10 == 0:  # Update progress every 10 episodes
                     progress = 80 + int((i / len(trending_episodes)) * 20)
                     self.update_state(state='PROGRESS', meta={'current': progress, 'total': 100, 'status': f'Prefetching episode {i+1}/{len(trending_episodes)}'})
@@ -139,19 +139,19 @@ def warm_cache_for_series(self, series_id: int):
         self.update_state(state='PROGRESS', meta={'current': 0, 'total': 100, 'status': 'Starting cache warming'})
         
         # Prefetch series basic and extended data
-        await _prefetch_series_data(series_id)
+        asyncio.run(_prefetch_series_data(series_id))
         self.update_state(state='PROGRESS', meta={'current': 30, 'total': 100, 'status': 'Series data cached'})
         
         # Prefetch all episodes for the series
-        await _prefetch_series_episodes(series_id)
+        asyncio.run(_prefetch_series_episodes(series_id))
         self.update_state(state='PROGRESS', meta={'current': 70, 'total': 100, 'status': 'Episodes cached'})
         
         # Prefetch seasons data
-        await _prefetch_series_seasons(series_id)
+        asyncio.run(_prefetch_series_seasons(series_id))
         self.update_state(state='PROGRESS', meta={'current': 90, 'total': 100, 'status': 'Seasons cached'})
         
         # Prefetch artwork and cast
-        await _prefetch_series_metadata(series_id)
+        asyncio.run(_prefetch_series_metadata(series_id))
         self.update_state(state='PROGRESS', meta={'current': 100, 'total': 100, 'status': 'Cache warming completed'})
         
         logger.info("Cache warming completed for series", series_id=series_id)

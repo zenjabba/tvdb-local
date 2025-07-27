@@ -10,9 +10,10 @@ from app.database import SessionLocal
 from app.services.tvdb_client import tvdb_client
 from app.models import Series, Episode, Movie, Person, Season
 from app.models.static_data import (
-    Genre, Language, ArtworkType, SeriesStatus, MovieStatus,
+    ArtworkType, SeriesStatus, MovieStatus,
     PersonType, Gender, ContentRating
 )
+from app.models import Genre, Language
 
 logger = structlog.get_logger()
 
