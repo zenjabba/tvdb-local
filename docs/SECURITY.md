@@ -74,4 +74,4 @@ If secrets are accidentally committed:
 
 ---
 
-**Remember**: Security is everyone's responsibility! 🛡️
+**Remember**: Security is everyone's responsibility!

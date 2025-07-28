@@ -101,6 +101,6 @@ def init_demo_keys():
 
 
 if __name__ == "__main__":
-    print("🔑 Initializing demo API keys...")
+    print("Initializing demo API keys...")
     init_demo_keys()
-    print("✅ Demo API keys initialization completed!")
+    print("Demo API keys initialization completed!")

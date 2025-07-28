@@ -72,7 +72,7 @@ def main():
     # Get admin token
     print("1. Getting admin token...")
     admin_token = get_admin_token()
-    print("✅ Admin authenticated\n")
+    print("Admin authenticated\n")
     
     # Create a licensed key (no PIN)
     print("2. Creating licensed API key (no PIN required)...")
@@ -83,7 +83,7 @@ def main():
         rate_limit=200,
         requires_pin=False
     )
-    print(f"✅ Created: {licensed_key['name']}")
+    print(f"Created: {licensed_key['name']}")
     print(f"   Key: {licensed_key['key']}")
     print(f"   Rate limit: {licensed_key['rate_limit']}/min\n")
     
@@ -97,7 +97,7 @@ def main():
         requires_pin=True,
         pin="user123"
     )
-    print(f"✅ Created: {user_key['name']}")
+    print(f"Created: {user_key['name']}")
     print(f"   Key: {user_key['key']}")
     print(f"   PIN: user123")
     print(f"   Rate limit: {user_key['rate_limit']}/min\n")
@@ -105,7 +105,7 @@ def main():
     # List all keys
     print("4. Listing all API keys...")
     keys = list_api_keys(admin_token)
-    print(f"✅ Total keys: {len(keys)}\n")
+    print(f"Total keys: {len(keys)}\n")
     
     for key in keys:
         pin_status = "PIN required" if key['requires_pin'] else "No PIN"

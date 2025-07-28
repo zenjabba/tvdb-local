@@ -31,10 +31,10 @@ def test_login(base_url, api_key, pin=None):
     
     if response.status_code == 200:
         token = response.json().get("data", {}).get("token")
-        print(f"✅ Login successful! Token: {token[:20]}...")
+        print(f"Login successful! Token: {token[:20]}...")
         return token
     else:
-        print("❌ Login failed!")
+        print("Login failed!")
         return None
 
 
@@ -49,13 +49,13 @@ def test_authenticated_request(base_url, token, endpoint):
     
     print(f"Status: {response.status_code}")
     if response.status_code == 200:
-        print("✅ Authenticated request successful!")
+        print("Authenticated request successful!")
         # Don't print full response as it might be large
         data = response.json()
         if isinstance(data, dict) and "data" in data:
             print(f"Response contains {len(data.get('data', []))} items")
     else:
-        print(f"❌ Request failed: {response.text}")
+        print(f"Request failed: {response.text}")
 
 
 def main():

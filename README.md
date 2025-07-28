@@ -4,18 +4,18 @@ A high-performance caching proxy for TVDB API v4 with **database-backed API key 
 
 ## Features
 
-- 🚀 **Full TVDB v4 API Compatibility**: Drop-in replacement for api4.thetvdb.com
-- 🔐 **Dual Authentication Modes**: Support for both licensed and user-supported (PIN-based) keys
-- ⚡ **High Performance**: Redis caching with sub-100ms response times
-- 🔑 **Database-Backed API Keys**: PostgreSQL-stored API keys with full CRUD management
-- 📦 **Complete Data Storage**: PostgreSQL for persistent TVDB data and authentication
-- 🔄 **Auto-Sync**: Background workers keep data up-to-date
-- 🛡️ **Rate Limiting**: Configurable rate limiting per client
-- 📊 **Usage Analytics**: Track API usage per client with real-time statistics
-- 🖼️ **S3 Image Storage**: Ceph S3 compatible storage for TVDB images with 1:1 raw storage
-- 🎯 **Image Proxy**: Serve images through application without exposing S3 URLs
-- 🐳 **Docker Ready**: Complete containerized deployment
-- 📖 **Well Documented**: Comprehensive docs and examples
+- **Full TVDB v4 API Compatibility**: Drop-in replacement for api4.thetvdb.com
+- **Dual Authentication Modes**: Support for both licensed and user-supported (PIN-based) keys
+- **High Performance**: Redis caching with sub-100ms response times
+- **Database-Backed API Keys**: PostgreSQL-stored API keys with full CRUD management
+- **Complete Data Storage**: PostgreSQL for persistent TVDB data and authentication
+- **Auto-Sync**: Background workers keep data up-to-date
+- **Rate Limiting**: Configurable rate limiting per client
+- **Usage Analytics**: Track API usage per client with real-time statistics
+- **S3 Image Storage**: Ceph S3 compatible storage for TVDB images with 1:1 raw storage
+- **Image Proxy**: Serve images through application without exposing S3 URLs
+- **Docker Ready**: Complete containerized deployment
+- **Well Documented**: Comprehensive docs and examples
 
 ## Quick Start
 
@@ -294,7 +294,7 @@ curl http://localhost:8888/v4/series/121361 \
 | `CACHE_TTL_STATIC_HOURS` | Static data cache TTL | 24 |
 | `CACHE_TTL_DYNAMIC_HOURS` | Dynamic data cache TTL | 1 |
 
-## Database Migration Complete ✅
+## Database Migration Complete
 
 **The TVDB Proxy has been migrated to use full database storage for API key management.**
 
