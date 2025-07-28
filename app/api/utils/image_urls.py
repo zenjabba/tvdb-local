@@ -1,14 +1,16 @@
 """Utilities for handling image URLs in API responses."""
 from typing import Any, Dict
 
+from fastapi import Request
 from sqlalchemy.orm import Session
 
 from app.config import settings
 from app.models import Episode, Movie, Person, Season, Series
 from app.services.image_service import image_service
+from app.services.storage import storage
 
 
-def get_base_url(request) -> str:
+def get_base_url(request: Request) -> str:
     """Get the base URL for the current request.
 
     Args:
@@ -107,7 +109,6 @@ def _check_local_image_exists(entity_type: str, entity_id: int, image_type: str)
     Returns:
         True if image exists locally
     """
-    from app.services.storage import storage
 
     # Check for common image extensions
     for ext in ['jpg', 'jpeg', 'png', 'gif', 'webp']:

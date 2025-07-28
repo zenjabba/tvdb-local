@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Test script to verify TVDB v4 API compliance"""
-import requests
 import json
+
+import requests
 
 # Configuration
 PROXY_URL = "http://localhost:8888"  # Your proxy
@@ -23,7 +24,8 @@ def test_login(base_url, api_key, pin=None):
     response = requests.post(
         f"{base_url}/login",
         json=payload,
-        headers={"Content-Type": "application/json"}
+        headers={"Content-Type": "application/json"},
+        timeout=30
     )
 
     print(f"Status: {response.status_code}")
@@ -33,9 +35,8 @@ def test_login(base_url, api_key, pin=None):
         token = response.json().get("data", {}).get("token")
         print(f"Login successful! Token: {token[:20]}...")
         return token
-    else:
-        print("Login failed!")
-        return None
+    print("Login failed!")
+    return None
 
 
 def test_authenticated_request(base_url, token, endpoint):
@@ -44,7 +45,8 @@ def test_authenticated_request(base_url, token, endpoint):
 
     response = requests.get(
         f"{base_url}{endpoint}",
-        headers={"Authorization": f"Bearer {token}"}
+        headers={"Authorization": f"Bearer {token}"},
+        timeout=30
     )
 
     print(f"Status: {response.status_code}")
@@ -72,7 +74,7 @@ def main():
 
     # Test 3: Login with PIN
     print("\n3. Testing login with PIN:")
-    token_with_pin = test_login(PROXY_URL, API_KEY, PIN)
+    test_login(PROXY_URL, API_KEY, PIN)
 
     # Test 4: Make authenticated requests
     if token:

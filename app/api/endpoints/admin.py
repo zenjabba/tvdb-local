@@ -157,7 +157,7 @@ async def list_api_keys(
         raise HTTPException(
             status_code=500,
             detail="Failed to retrieve API keys"
-        )
+        ) from e
 
 
 @router.get("/api-keys/{key_id}", response_model=ApiKeyResponse)
@@ -196,7 +196,7 @@ async def get_api_key(
         raise HTTPException(
             status_code=500,
             detail="Failed to retrieve API key"
-        )
+        ) from e
 
 
 @router.put("/api-keys/{key_id}", response_model=ApiKeyResponse)
@@ -245,7 +245,7 @@ async def update_api_key(
         raise HTTPException(
             status_code=500,
             detail="Failed to update API key"
-        )
+        ) from e
 
 
 @router.delete("/api-keys/{key_id}")

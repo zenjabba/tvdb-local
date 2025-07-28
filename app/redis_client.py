@@ -49,8 +49,7 @@ class CacheManager:
                 return self.client.setex(
                     key, timedelta(
                         hours=ttl_hours), serialized)
-            else:
-                return self.client.set(key, serialized)
+            return self.client.set(key, serialized)
         except Exception as e:
             logger.error("Cache set error", key=key, error=str(e))
             return False

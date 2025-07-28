@@ -9,9 +9,9 @@ This script demonstrates how to:
 4. Update API key settings
 """
 
-import requests
-import json
 from typing import Optional
+
+import requests
 
 # Configuration
 BASE_URL = "http://localhost:8888"
@@ -22,7 +22,8 @@ def get_admin_token() -> str:
     """Get admin authentication token"""
     response = requests.post(
         f"{BASE_URL}/login",
-        json={"apikey": ADMIN_API_KEY}
+        json={"apikey": ADMIN_API_KEY},
+        timeout=30
     )
     response.raise_for_status()
     return response.json()["data"]["token"]
@@ -50,7 +51,8 @@ def create_api_key(
     response = requests.post(
         f"{BASE_URL}/api/v1/admin/api-keys",
         headers={"Authorization": f"Bearer {token}"},
-        json=payload
+        json=payload,
+        timeout=30
     )
     response.raise_for_status()
     return response.json()
@@ -60,7 +62,8 @@ def list_api_keys(token: str) -> list:
     """List all API keys"""
     response = requests.get(
         f"{BASE_URL}/api/v1/admin/api-keys",
-        headers={"Authorization": f"Bearer {token}"}
+        headers={"Authorization": f"Bearer {token}"},
+        timeout=30
     )
     response.raise_for_status()
     return response.json()["keys"]
@@ -99,7 +102,7 @@ def main():
     )
     print(f"Created: {user_key['name']}")
     print(f"   Key: {user_key['key']}")
-    print(f"   PIN: user123")
+    print("   PIN: user123")
     print(f"   Rate limit: {user_key['rate_limit']}/min\n")
 
     # List all keys
@@ -120,12 +123,12 @@ def main():
 
     print("Licensed key (no PIN):")
     print(f"curl -X POST {BASE_URL}/login \\")
-    print(f'  -H "Content-Type: application/json" \\')
+    print('  -H "Content-Type: application/json" \\')
     print(f'  -d \'{{"apikey": "{licensed_key["key"]}"}}\'\n')
 
     print("User-supported key (with PIN):")
     print(f"curl -X POST {BASE_URL}/login \\")
-    print(f'  -H "Content-Type: application/json" \\')
+    print('  -H "Content-Type: application/json" \\')
     print(f'  -d \'{{"apikey": "{user_key["key"]}", "pin": "user123"}}\'\n')
 
 

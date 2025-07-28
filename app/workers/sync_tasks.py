@@ -672,7 +672,7 @@ async def _sync_content_images_async(image_downloads, content_type, content_id, 
     synced_images = {}
 
     # Create a fresh ImageService instance for this task
-    async with ImageService() as img_service:
+    async with ImgService() as img_service:
         for field_name, image_url in image_downloads:
             try:
                 # Download and store the image
@@ -706,12 +706,12 @@ async def _sync_content_images_async(image_downloads, content_type, content_id, 
 
 async def _sync_artwork_images_async(artwork_downloads):
     """Download and store artwork images in a single async context."""
-    from app.services.image_service import ImageService
+    from app.services.image_service import ImageService as ImgService
 
     artwork_count = 0
 
     # Create a fresh ImageService instance for this task
-    async with ImageService() as img_service:
+    async with ImgService() as img_service:
         for image_type, image_url, artwork in artwork_downloads:
             try:
                 stored_key = await img_service.download_and_store_image(
@@ -726,8 +726,7 @@ async def _sync_artwork_images_async(artwork_downloads):
                             "artwork", artwork.id, "image"
                         )
                         artwork.storage_path = stored_key
-                        from datetime import datetime as dt
-                        artwork.processed_at = dt.utcnow()
+                        artwork.processed_at = datetime.utcnow()
                         artwork_count += 1
                     elif image_type == "thumbnail":
                         artwork.local_thumbnail_url = img_service.get_local_image_url(
