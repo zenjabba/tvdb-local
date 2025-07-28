@@ -1,30 +1,21 @@
-from .series import Series
-from .season import Season
-from .episode import Episode
-from .movie import Movie
-from .person import Person
-from .character import Character
+from .api_key import ApiKey
 from .artwork import Artwork
+from .character import Character
+from .company import Company
+from .episode import Episode
 from .genre import Genre
 from .language import Language
-from .company import Company
-from .api_key import ApiKey
-from .static_data import (
-    ArtworkType,
-    AwardCategory,
-    ContentRating,
-    EntityType,
-    Gender,
-    InspiationType,
-    MovieStatus,
-    SeriesStatus,
-    PersonType,
-    SourceType
-)
+from .movie import Movie
+from .person import Person
+from .season import Season
+from .series import Series
+from .static_data import (ArtworkType, AwardCategory, ContentRating,
+                          EntityType, Gender, InspiationType, MovieStatus,
+                          PersonType, SeriesStatus, SourceType)
 
 __all__ = [
     "Series",
-    "Season", 
+    "Season",
     "Episode",
     "Movie",
     "Person",

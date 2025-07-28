@@ -2,7 +2,7 @@ services:
   api:
     build: .
     ports:
-      - "8000:8000"
+      - "8888:8000"
     environment:
       - DATABASE_URL=postgresql://postgres:postgres@db:5432/tvdb_proxy
       - REDIS_URL=redis://redis:6379/0

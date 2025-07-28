@@ -4,14 +4,16 @@ A high-performance caching proxy for TVDB API v4 with **database-backed API key 
 
 ## Features
 
-- 🚀 **High Performance**: Redis caching with sub-100ms response times
-- 🔒 **Database-Backed API Keys**: PostgreSQL-stored API keys with full CRUD management
+- 🚀 **Full TVDB v4 API Compatibility**: Drop-in replacement for api4.thetvdb.com
+- 🔐 **Dual Authentication Modes**: Support for both licensed and user-supported (PIN-based) keys
+- ⚡ **High Performance**: Redis caching with sub-100ms response times
+- 🔑 **Database-Backed API Keys**: PostgreSQL-stored API keys with full CRUD management
 - 📦 **Complete Data Storage**: PostgreSQL for persistent TVDB data and authentication
 - 🔄 **Auto-Sync**: Background workers keep data up-to-date
 - 🛡️ **Rate Limiting**: Configurable rate limiting per client
-- 🎯 **Smart Caching**: Intelligent cache invalidation and prefetching
+- 📊 **Usage Analytics**: Track API usage per client with real-time statistics
 - 🐳 **Docker Ready**: Complete containerized deployment
-- 📊 **Monitoring**: Built-in health checks and metrics
+- 📖 **Well Documented**: Comprehensive docs and examples
 
 ## Quick Start
 
@@ -44,32 +46,77 @@ SECRET_KEY=generate_a_secure_secret_key
 docker-compose up -d
 ```
 
-The API will be available at `http://localhost:8000`
+The API will be available at `http://localhost:8888`
 
-### 4. Health Check
+### 4. Initialize Demo Keys
 
 ```bash
-curl http://localhost:8000/health
+docker-compose exec -T api python -m scripts.init_demo_keys
 ```
 
-## API Usage
-
-### Authentication
-
-Get a JWT token using your API key:
+### 5. Health Check
 
 ```bash
-curl -X POST "http://localhost:8000/api/v1/auth/token" \
+curl http://localhost:8888/health
+```
+
+## TVDB v4 API Compliance
+
+This proxy is a **drop-in replacement** for the official TVDB v4 API. Any application that works with TVDB can use this proxy by simply changing the base URL from `https://api4.thetvdb.com` to `http://localhost:8888`.
+
+### Authentication (TVDB v4 Compatible)
+
+```bash
+# Licensed key (no PIN required)
+curl -X POST "http://localhost:8888/login" \
   -H "Content-Type: application/json" \
-  -d '{"api_key": "demo-key-1"}'
+  -d '{"apikey": "demo-key-1"}'
+
+# User-supported key (PIN required)
+curl -X POST "http://localhost:8888/login" \
+  -H "Content-Type: application/json" \
+  -d '{"apikey": "tvdb-demo-user-key", "pin": "1234"}'
 ```
 
-Use the token in subsequent requests:
+Response (TVDB v4 format):
+```json
+{
+  "data": {
+    "token": "eyJhbGciOiJIUzI1NiIs..."
+  },
+  "status": "success"
+}
+```
+
+Use the token in subsequent requests (exactly like TVDB):
 
 ```bash
 curl -H "Authorization: Bearer YOUR_JWT_TOKEN" \
-  "http://localhost:8000/api/v1/series/83268"
+  "http://localhost:8888/v4/series/121361"
 ```
+
+## API Key Types
+
+The proxy supports both TVDB API key types:
+
+### 1. Licensed Keys (No PIN Required)
+- For commercial applications with TVDB contracts
+- Higher rate limits
+- Example: `demo-key-1`, `demo-key-2`
+
+### 2. User-Supported Keys (PIN Required)
+- For open-source/community projects
+- Requires user's TVDB subscription PIN
+- Example: `tvdb-demo-user-key` (PIN: `1234`)
+
+### Default Demo Keys
+
+| Key | Type | PIN | Rate Limit |
+|-----|------|-----|------------|
+| `demo-key-1` | Licensed | None | 100/min |
+| `demo-key-2` | Licensed | None | 200/min |
+| `tvdb-demo-user-key` | User-supported | `1234` | 50/min |
+| `admin-super-key-change-in-production` | Admin | None | 1000/min |
 
 ### Endpoints
 
@@ -77,56 +124,95 @@ curl -H "Authorization: Bearer YOUR_JWT_TOKEN" \
 
 ```bash
 # Get series by ID
-GET /api/v1/series/{series_id}
+GET /v4/series/{series_id}
 
 # Get extended series information  
-GET /api/v1/series/{series_id}?extended=true
+GET /v4/series/{series_id}?extended=true
 
 # Get series episodes
-GET /api/v1/series/{series_id}/episodes?page=0
+GET /v4/series/{series_id}/episodes?page=0
 
 # Get all series (paginated)
-GET /api/v1/series?page=0
+GET /v4/series?page=0
 ```
 
 #### Movies
 
 ```bash
 # Get movie by ID
-GET /api/v1/movies/{movie_id}
+GET /v4/movies/{movie_id}
 
 # Get extended movie information
-GET /api/v1/movies/{movie_id}?extended=true
+GET /v4/movies/{movie_id}?extended=true
 ```
 
 #### Episodes
 
 ```bash
 # Get episode by ID
-GET /api/v1/episodes/{episode_id}
+GET /v4/episodes/{episode_id}
 ```
 
 #### People
 
 ```bash
 # Get person by ID
-GET /api/v1/people/{person_id}
+GET /v4/people/{person_id}
 ```
 
 #### Search
 
 ```bash
 # Search series
-GET /api/v1/search/series?q=breaking+bad
+GET /v4/search/series?q=breaking+bad
 
 # Search movies
-GET /api/v1/search/movies?q=inception
+GET /v4/search/movies?q=inception
 
 # Search people
-GET /api/v1/search/people?q=bryan+cranston
+GET /v4/search/people?q=bryan+cranston
 
 # Search all types
-GET /api/v1/search/all?q=batman
+GET /v4/search/all?q=batman
+```
+
+## Using with TVDB Applications
+
+To use this proxy with any TVDB application, simply change the base URL:
+
+### Python (tvdb_v4_official)
+```python
+from tvdb_v4_official import TVDB
+
+# Original
+tvdb = TVDB("your-api-key")
+# Internally: base_url="https://api4.thetvdb.com"
+
+# Using proxy
+tvdb = TVDB("your-api-key")
+tvdb.base_url = "http://localhost:8888"  # Override base URL
+```
+
+### JavaScript/Node
+```javascript
+const TVDB = require('node-tvdb');
+
+// Using proxy  
+const client = new TVDB('your-api-key', {
+    baseURL: 'http://localhost:8888'  // Instead of api4.thetvdb.com
+});
+```
+
+### Any HTTP Client
+```bash
+# Get token
+TOKEN=$(curl -s -X POST http://localhost:8888/login \
+  -H "Content-Type: application/json" \
+  -d '{"apikey": "your-key"}' | jq -r .data.token)
+
+# Use token
+curl http://localhost:8888/v4/series/121361 \
+  -H "Authorization: Bearer $TOKEN"
 ```
 
 ## Architecture
@@ -206,7 +292,7 @@ ADMIN_KEY="admin-super-key-change-in-production"
 Create new API keys via the admin REST API:
 
 ```bash
-curl -X POST "http://localhost:8000/api/v1/admin/api-keys" \
+curl -X POST "http://localhost:8888/api/v1/admin/api-keys" \
   -H "Authorization: Bearer admin-super-key-change-in-production" \
   -H "Content-Type: application/json" \
   -d '{
@@ -238,20 +324,20 @@ curl -X POST "http://localhost:8000/api/v1/admin/api-keys" \
 
 ```bash
 curl -H "Authorization: Bearer admin-super-key-change-in-production" \
-  "http://localhost:8000/api/v1/admin/api-keys?page=1&per_page=20"
+  "http://localhost:8888/api/v1/admin/api-keys?page=1&per_page=20"
 ```
 
 #### Get Specific API Key Details
 
 ```bash
 curl -H "Authorization: Bearer admin-super-key-change-in-production" \
-  "http://localhost:8000/api/v1/admin/api-keys/4"
+  "http://localhost:8888/api/v1/admin/api-keys/4"
 ```
 
 #### Update API Key
 
 ```bash
-curl -X PUT "http://localhost:8000/api/v1/admin/api-keys/4" \
+curl -X PUT "http://localhost:8888/api/v1/admin/api-keys/4" \
   -H "Authorization: Bearer admin-super-key-change-in-production" \
   -H "Content-Type: application/json" \
   -d '{
@@ -264,14 +350,14 @@ curl -X PUT "http://localhost:8000/api/v1/admin/api-keys/4" \
 #### Rotate API Key (Generate New Key)
 
 ```bash
-curl -X POST "http://localhost:8000/api/v1/admin/api-keys/4/rotate" \
+curl -X POST "http://localhost:8888/api/v1/admin/api-keys/4/rotate" \
   -H "Authorization: Bearer admin-super-key-change-in-production"
 ```
 
 #### Delete API Key
 
 ```bash
-curl -X DELETE "http://localhost:8000/api/v1/admin/api-keys/4" \
+curl -X DELETE "http://localhost:8888/api/v1/admin/api-keys/4" \
   -H "Authorization: Bearer admin-super-key-change-in-production"
 ```
 
@@ -279,7 +365,7 @@ curl -X DELETE "http://localhost:8000/api/v1/admin/api-keys/4" \
 
 ```bash
 curl -H "Authorization: Bearer admin-super-key-change-in-production" \
-  "http://localhost:8000/api/v1/admin/api-keys/stats/usage"
+  "http://localhost:8888/api/v1/admin/api-keys/stats/usage"
 ```
 
 ### API Key Configuration Options
@@ -308,7 +394,7 @@ Each API key supports the following configuration options:
 
 ```bash
 # High-volume production client
-curl -X POST "http://localhost:8000/api/v1/admin/api-keys" \
+curl -X POST "http://localhost:8888/api/v1/admin/api-keys" \
   -H "Authorization: Bearer admin-super-key-change-in-production" \
   -H "Content-Type: application/json" \
   -d '{
@@ -319,7 +405,7 @@ curl -X POST "http://localhost:8000/api/v1/admin/api-keys" \
   }'
 
 # Mobile app with moderate usage
-curl -X POST "http://localhost:8000/api/v1/admin/api-keys" \
+curl -X POST "http://localhost:8888/api/v1/admin/api-keys" \
   -H "Authorization: Bearer admin-super-key-change-in-production" \
   -H "Content-Type: application/json" \
   -d '{
@@ -330,7 +416,7 @@ curl -X POST "http://localhost:8000/api/v1/admin/api-keys" \
   }'
 
 # Development/testing key with expiration
-curl -X POST "http://localhost:8000/api/v1/admin/api-keys" \
+curl -X POST "http://localhost:8888/api/v1/admin/api-keys" \
   -H "Authorization: Bearer admin-super-key-change-in-production" \
   -H "Content-Type: application/json" \
   -d '{
@@ -369,7 +455,7 @@ docker-compose exec api python scripts/init_demo_keys.py
 1. **Change Default Admin Key**:
 ```bash
 # Create new admin key
-curl -X POST "http://localhost:8000/api/v1/admin/api-keys" \
+curl -X POST "http://localhost:8888/api/v1/admin/api-keys" \
   -H "Authorization: Bearer admin-super-key-change-in-production" \
   -H "Content-Type: application/json" \
   -d '{
@@ -380,7 +466,7 @@ curl -X POST "http://localhost:8000/api/v1/admin/api-keys" \
   }'
 
 # Then disable or delete the default admin key
-curl -X PUT "http://localhost:8000/api/v1/admin/api-keys/3" \
+curl -X PUT "http://localhost:8888/api/v1/admin/api-keys/3" \
   -H "Authorization: Bearer your-new-admin-key" \
   -H "Content-Type: application/json" \
   -d '{"active": false}'
@@ -389,9 +475,9 @@ curl -X PUT "http://localhost:8000/api/v1/admin/api-keys/3" \
 2. **Remove Demo Keys**:
 ```bash
 # Disable demo keys
-curl -X DELETE "http://localhost:8000/api/v1/admin/api-keys/1" \
+curl -X DELETE "http://localhost:8888/api/v1/admin/api-keys/1" \
   -H "Authorization: Bearer your-admin-key"
-curl -X DELETE "http://localhost:8000/api/v1/admin/api-keys/2" \
+curl -X DELETE "http://localhost:8888/api/v1/admin/api-keys/2" \
   -H "Authorization: Bearer your-admin-key"
 ```
 
@@ -413,7 +499,7 @@ curl -X DELETE "http://localhost:8000/api/v1/admin/api-keys/2" \
 
 **Disable a key temporarily**:
 ```bash
-curl -X PUT "http://localhost:8000/api/v1/admin/api-keys/4" \
+curl -X PUT "http://localhost:8888/api/v1/admin/api-keys/4" \
   -H "Authorization: Bearer admin-super-key-change-in-production" \
   -H "Content-Type: application/json" \
   -d '{"active": false}'
@@ -423,15 +509,15 @@ curl -X PUT "http://localhost:8000/api/v1/admin/api-keys/4" \
 ```bash
 # Get comprehensive usage statistics
 curl -H "Authorization: Bearer admin-super-key-change-in-production" \
-  "http://localhost:8000/api/v1/admin/api-keys/stats/usage"
+  "http://localhost:8888/api/v1/admin/api-keys/stats/usage"
 
 # Check specific key usage
 curl -H "Authorization: Bearer admin-super-key-change-in-production" \
-  "http://localhost:8000/api/v1/admin/api-keys/4"
+  "http://localhost:8888/api/v1/admin/api-keys/4"
 
 # Search keys by name
 curl -H "Authorization: Bearer admin-super-key-change-in-production" \
-  "http://localhost:8000/api/v1/admin/api-keys?search=production"
+  "http://localhost:8888/api/v1/admin/api-keys?search=production"
 ```
 
 ### Testing New API Keys
@@ -440,19 +526,19 @@ curl -H "Authorization: Bearer admin-super-key-change-in-production" \
 ```bash
 # Use API key directly (recommended)
 curl -H "Authorization: Bearer your-new-api-key" \
-  "http://localhost:8000/api/v1/series/83268"
+  "http://localhost:8888/api/v1/series/83268"
 ```
 
 2. **Or get JWT token** (alternative):
 ```bash
-curl -X POST "http://localhost:8000/api/v1/auth/token" \
+curl -X POST "http://localhost:8888/api/v1/auth/token" \
   -H "Content-Type: application/json" \
   -d '{"api_key": "your-new-api-key"}'
 
 # Use token
 TOKEN="your-jwt-token-here"
 curl -H "Authorization: Bearer $TOKEN" \
-  "http://localhost:8000/api/v1/series/83268"
+  "http://localhost:8888/api/v1/series/83268"
 ```
 
 3. **Verify rate limiting**:
@@ -460,7 +546,7 @@ curl -H "Authorization: Bearer $TOKEN" \
 # Make rapid requests to test rate limiting
 for i in {1..10}; do
   curl -H "Authorization: Bearer your-new-api-key" \
-    "http://localhost:8000/api/v1/series/83268" &
+    "http://localhost:8888/api/v1/series/83268" &
 done
 ```
 
@@ -468,7 +554,7 @@ done
 ```bash
 # View updated usage statistics
 curl -H "Authorization: Bearer admin-super-key-change-in-production" \
-  "http://localhost:8000/api/v1/admin/api-keys/4"
+  "http://localhost:8888/api/v1/admin/api-keys/4"
 ```
 
 ### Database-Backed Features
@@ -625,8 +711,8 @@ LOG_LEVEL=DEBUG
 ## API Documentation
 
 Interactive API documentation available at:
-- Swagger UI: `http://localhost:8000/api/v1/docs`
-- ReDoc: `http://localhost:8000/api/v1/redoc`
+- Swagger UI: `http://localhost:8888/api/v1/docs`
+- ReDoc: `http://localhost:8888/api/v1/redoc`
 
 ## Performance
 
@@ -642,6 +728,52 @@ Interactive API documentation available at:
 2. **Adjust TTL values** based on content update frequency
 3. **Scale horizontally** by adding more API instances
 4. **Use Redis Cluster** for high availability
+
+## Documentation
+
+- [TVDB Compliance Guide](docs/TVDB_COMPLIANCE.md) - Detailed TVDB v4 API compatibility information
+- [API Documentation](http://localhost:8888/api/v1/docs) - Interactive Swagger UI (when running)
+
+## Examples
+
+See the [examples](examples/) directory for:
+
+- `test_tvdb_compliance.py` - Test script to verify TVDB compatibility
+- `manage_api_keys.py` - Python example for API key management  
+- `create_user_key.sh` - Bash script to create user-supported keys
+
+### Quick Test
+
+```bash
+# Run compliance test
+python3 examples/test_tvdb_compliance.py
+
+# Create a new user-supported key
+./examples/create_user_key.sh
+```
+
+## Creating User-Supported Keys
+
+User-supported keys require a PIN (for open-source projects where users have their own TVDB subscription):
+
+```bash
+# Get admin token
+ADMIN_TOKEN=$(curl -s -X POST http://localhost:8888/login \
+  -H "Content-Type: application/json" \
+  -d '{"apikey": "admin-super-key-change-in-production"}' | jq -r .data.token)
+
+# Create user-supported key with PIN
+curl -X POST http://localhost:8888/api/v1/admin/api-keys \
+  -H "Authorization: Bearer $ADMIN_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Community Project",
+    "description": "Open-source project requiring user PIN",
+    "rate_limit": 50,
+    "requires_pin": true,
+    "pin": "user-pin-here"
+  }'
+```
 
 ## Contributing
 

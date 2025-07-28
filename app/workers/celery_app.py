@@ -1,7 +1,9 @@
+"""Celery application configuration."""
+import structlog
 from celery import Celery
 from celery.schedules import crontab
+
 from app.config import settings
-import structlog
 
 logger = structlog.get_logger()
 
@@ -39,7 +41,7 @@ celery_app.conf.beat_schedule = {
     },
     # Incremental updates every 15 minutes
     "incremental-sync": {
-        "task": "app.workers.sync_tasks.incremental_sync", 
+        "task": "app.workers.sync_tasks.incremental_sync",
         "schedule": crontab(minute="*/15"),
     },
     # Cache cleanup every hour

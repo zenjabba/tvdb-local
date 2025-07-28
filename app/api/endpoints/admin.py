@@ -1,20 +1,19 @@
+from datetime import datetime
+from typing import Optional
+
+import structlog
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from slowapi import Limiter
 from slowapi.util import get_remote_address
-from sqlalchemy.orm import Session
 from sqlalchemy import desc, func
-from typing import Optional
-import structlog
-from datetime import datetime
+from sqlalchemy.orm import Session
 
 from app.auth import get_current_client
 from app.database import get_db
 from app.models import ApiKey
-from app.schemas.api_key import (
-    ApiKeyCreate, ApiKeyUpdate, ApiKeyResponse, ApiKeyWithKey,
-    ApiKeyList, ApiKeyUsageStats, ApiKeyRotateResponse
-)
-from app.config import settings
+from app.schemas.api_key import (ApiKeyCreate, ApiKeyList, ApiKeyResponse,
+                                 ApiKeyRotateResponse, ApiKeyUpdate,
+                                 ApiKeyUsageStats, ApiKeyWithKey)
 
 logger = structlog.get_logger()
 
@@ -30,16 +29,17 @@ ADMIN_API_KEYS = {
 }
 
 
-def verify_admin_access(current_client: dict = Depends(get_current_client)) -> dict:
+def verify_admin_access(
+        current_client: dict = Depends(get_current_client)) -> dict:
     """Verify that the current client has admin access"""
     api_key = current_client.get("api_key") or current_client.get("sub")
-    
+
     if api_key not in ADMIN_API_KEYS:
         raise HTTPException(
             status_code=403,
             detail="Admin access required"
         )
-    
+
     return current_client
 
 
@@ -53,15 +53,18 @@ async def create_api_key(
 ):
     """
     Create a new API key
-    
+
     Admin access required. Returns the full API key only once upon creation.
     """
     try:
-        logger.info("Creating new API key", name=key_data.name, admin=admin.get("client_name"))
-        
+        logger.info(
+            "Creating new API key",
+            name=key_data.name,
+            admin=admin.get("client_name"))
+
         # Generate a secure API key
         api_key = ApiKey.generate_key()
-        
+
         # Create the database record
         db_key = ApiKey(
             key=api_key,
@@ -70,22 +73,24 @@ async def create_api_key(
             rate_limit=key_data.rate_limit,
             active=key_data.active,
             expires_at=key_data.expires_at,
-            created_by=key_data.created_by or admin.get("client_name", "admin")
+            created_by=key_data.created_by or admin.get("client_name", "admin"),
+            requires_pin=key_data.requires_pin,
+            pin=key_data.pin
         )
-        
+
         db.add(db_key)
         db.commit()
         db.refresh(db_key)
-        
-        logger.info("API key created successfully", 
-                   key_id=db_key.id, 
-                   name=db_key.name,
-                   rate_limit=db_key.rate_limit)
-        
+
+        logger.info("API key created successfully",
+                    key_id=db_key.id,
+                    name=db_key.name,
+                    rate_limit=db_key.rate_limit)
+
         # Return the full key only once
         result = db_key.to_dict(include_key=True)
         return ApiKeyWithKey(**result)
-        
+
     except Exception as e:
         logger.error("Failed to create API key", error=str(e))
         db.rollback()
@@ -108,31 +113,36 @@ async def list_api_keys(
 ):
     """
     List all API keys with pagination
-    
+
     Admin access required. Never returns the actual API keys.
     """
     try:
-        logger.info("Listing API keys", page=page, per_page=per_page, admin=admin.get("client_name"))
-        
+        logger.info(
+            "Listing API keys",
+            page=page,
+            per_page=per_page,
+            admin=admin.get("client_name"))
+
         # Build query
         query = db.query(ApiKey)
-        
+
         if active_only:
-            query = query.filter(ApiKey.active == True)
-        
+            query = query.filter(ApiKey.active)
+
         if search:
             query = query.filter(ApiKey.name.ilike(f"%{search}%"))
-        
+
         # Get total count
         total = query.count()
-        
+
         # Apply pagination
         offset = (page - 1) * per_page
-        keys = query.order_by(desc(ApiKey.created_at)).offset(offset).limit(per_page).all()
-        
+        keys = query.order_by(desc(ApiKey.created_at)).offset(
+            offset).limit(per_page).all()
+
         # Convert to response format
         key_responses = [ApiKeyResponse(**key.to_dict()) for key in keys]
-        
+
         return ApiKeyList(
             keys=key_responses,
             total=total,
@@ -141,7 +151,7 @@ async def list_api_keys(
             has_next=(offset + per_page) < total,
             has_prev=page > 1
         )
-        
+
     except Exception as e:
         logger.error("Failed to list API keys", error=str(e))
         raise HTTPException(
@@ -160,22 +170,25 @@ async def get_api_key(
 ):
     """
     Get details of a specific API key
-    
+
     Admin access required. Does not return the actual API key.
     """
     try:
         db_key = db.query(ApiKey).filter(ApiKey.id == key_id).first()
-        
+
         if not db_key:
             raise HTTPException(
                 status_code=404,
                 detail="API key not found"
             )
-        
-        logger.info("Retrieved API key details", key_id=key_id, admin=admin.get("client_name"))
-        
+
+        logger.info(
+            "Retrieved API key details",
+            key_id=key_id,
+            admin=admin.get("client_name"))
+
         return ApiKeyResponse(**db_key.to_dict())
-        
+
     except HTTPException:
         raise
     except Exception as e:
@@ -197,33 +210,33 @@ async def update_api_key(
 ):
     """
     Update an existing API key
-    
+
     Admin access required. Cannot update the actual key value.
     """
     try:
         db_key = db.query(ApiKey).filter(ApiKey.id == key_id).first()
-        
+
         if not db_key:
             raise HTTPException(
                 status_code=404,
                 detail="API key not found"
             )
-        
+
         # Update only provided fields
         update_data = key_data.dict(exclude_unset=True)
         for field, value in update_data.items():
             setattr(db_key, field, value)
-        
+
         db.commit()
         db.refresh(db_key)
-        
-        logger.info("API key updated successfully", 
-                   key_id=key_id, 
-                   updates=list(update_data.keys()),
-                   admin=admin.get("client_name"))
-        
+
+        logger.info("API key updated successfully",
+                    key_id=key_id,
+                    updates=list(update_data.keys()),
+                    admin=admin.get("client_name"))
+
         return ApiKeyResponse(**db_key.to_dict())
-        
+
     except HTTPException:
         raise
     except Exception as e:
@@ -245,29 +258,29 @@ async def delete_api_key(
 ):
     """
     Delete an API key
-    
+
     Admin access required. This action is irreversible.
     """
     try:
         db_key = db.query(ApiKey).filter(ApiKey.id == key_id).first()
-        
+
         if not db_key:
             raise HTTPException(
                 status_code=404,
                 detail="API key not found"
             )
-        
+
         key_name = db_key.name
         db.delete(db_key)
         db.commit()
-        
-        logger.info("API key deleted successfully", 
-                   key_id=key_id, 
-                   key_name=key_name,
-                   admin=admin.get("client_name"))
-        
+
+        logger.info("API key deleted successfully",
+                    key_id=key_id,
+                    key_name=key_name,
+                    admin=admin.get("client_name"))
+
         return {"message": f"API key '{key_name}' deleted successfully"}
-        
+
     except HTTPException:
         raise
     except Exception as e:
@@ -289,32 +302,32 @@ async def rotate_api_key(
 ):
     """
     Rotate an API key (generate new key value)
-    
+
     Admin access required. Returns the new key value only once.
     """
     try:
         db_key = db.query(ApiKey).filter(ApiKey.id == key_id).first()
-        
+
         if not db_key:
             raise HTTPException(
                 status_code=404,
                 detail="API key not found"
             )
-        
+
         old_key_preview = f"...{db_key.key[-4:]}"
         new_key = ApiKey.generate_key()
-        
+
         db_key.key = new_key
         db_key.total_requests = 0  # Reset request count
         db_key.last_used = None    # Reset last used
-        
+
         db.commit()
-        
-        logger.info("API key rotated successfully", 
-                   key_id=key_id, 
-                   key_name=db_key.name,
-                   admin=admin.get("client_name"))
-        
+
+        logger.info("API key rotated successfully",
+                    key_id=key_id,
+                    key_name=db_key.name,
+                    admin=admin.get("client_name"))
+
         return ApiKeyRotateResponse(
             id=db_key.id,
             name=db_key.name,
@@ -322,7 +335,7 @@ async def rotate_api_key(
             new_key=new_key,
             message="API key rotated successfully. Update your applications with the new key."
         )
-        
+
     except HTTPException:
         raise
     except Exception as e:
@@ -343,28 +356,30 @@ async def get_api_key_stats(
 ):
     """
     Get API key usage statistics
-    
+
     Admin access required.
     """
     try:
         total_keys = db.query(ApiKey).count()
-        active_keys = db.query(ApiKey).filter(ApiKey.active == True).count()
+        active_keys = db.query(ApiKey).filter(ApiKey.active).count()
         inactive_keys = total_keys - active_keys
-        
+
         # Count expired keys
         expired_keys = db.query(ApiKey).filter(
             ApiKey.expires_at < datetime.utcnow()
         ).count()
-        
+
         # Total requests across all keys
-        total_requests_result = db.query(func.sum(ApiKey.total_requests)).scalar()
+        total_requests_result = db.query(
+            func.sum(ApiKey.total_requests)).scalar()
         total_requests = total_requests_result or 0
-        
+
         # Average requests per key
         avg_requests = total_requests / total_keys if total_keys > 0 else 0
-        
+
         # Top 5 most used keys
-        top_keys_query = db.query(ApiKey).order_by(desc(ApiKey.total_requests)).limit(5)
+        top_keys_query = db.query(ApiKey).order_by(
+            desc(ApiKey.total_requests)).limit(5)
         top_keys = [
             {
                 "id": key.id,
@@ -374,9 +389,9 @@ async def get_api_key_stats(
             }
             for key in top_keys_query.all()
         ]
-        
+
         logger.info("API key stats retrieved", admin=admin.get("client_name"))
-        
+
         return ApiKeyUsageStats(
             total_keys=total_keys,
             active_keys=active_keys,
@@ -386,7 +401,7 @@ async def get_api_key_stats(
             avg_requests_per_key=round(avg_requests, 2),
             top_keys=top_keys
         )
-        
+
     except Exception as e:
         logger.error("Failed to get API key stats", error=str(e))
         raise HTTPException(

@@ -1,15 +1,16 @@
-from fastapi import FastAPI, Request, HTTPException
+import time
+
+import structlog
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from slowapi import Limiter, _rate_limit_exceeded_handler
-from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
-import structlog
-import time
+from slowapi.util import get_remote_address
 
+from app.api.routes import api_router
 from app.config import settings
 from app.database import create_tables
-from app.api.routes import api_router
 from app.redis_client import cache
 
 # Configure structured logging
@@ -61,11 +62,11 @@ app.add_middleware(
 @app.middleware("http")
 async def log_requests(request: Request, call_next):
     start_time = time.time()
-    
+
     response = await call_next(request)
-    
+
     process_time = time.time() - start_time
-    
+
     logger.info(
         "Request processed",
         method=request.method,
@@ -74,7 +75,7 @@ async def log_requests(request: Request, call_next):
         process_time=round(process_time, 4),
         client_host=request.client.host if request.client else None,
     )
-    
+
     response.headers["X-Process-Time"] = str(process_time)
     return response
 
@@ -83,7 +84,7 @@ async def log_requests(request: Request, call_next):
 @app.on_event("startup")
 async def startup_event():
     logger.info("Starting TVDB Proxy API", version=settings.version)
-    
+
     # Create database tables
     try:
         create_tables()
@@ -91,7 +92,7 @@ async def startup_event():
     except Exception as e:
         logger.error("Failed to create database tables", error=str(e))
         raise
-    
+
     # Test Redis connection
     try:
         cache.client.ping()
@@ -117,12 +118,12 @@ async def health_check():
         redis_status = "healthy"
     except Exception:
         redis_status = "unhealthy"
-    
+
     # Check database would go here
     db_status = "healthy"  # Simplified for now
-    
+
     overall_status = "healthy" if redis_status == "healthy" and db_status == "healthy" else "unhealthy"
-    
+
     return {
         "status": overall_status,
         "version": settings.version,
@@ -151,6 +152,11 @@ async def root():
 # Include API routes
 app.include_router(api_router, prefix=settings.api_v1_prefix)
 
+# Include TVDB v4 compliant routes at root level
+# This allows the proxy to be a drop-in replacement for TVDB API
+from app.tvdb_routes import tvdb_router
+app.include_router(tvdb_router)
+
 
 # Global exception handler
 @app.exception_handler(Exception)
@@ -162,7 +168,7 @@ async def global_exception_handler(request: Request, exc: Exception):
         method=request.method,
         exc_info=exc,
     )
-    
+
     return JSONResponse(
         status_code=500,
         content={

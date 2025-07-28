@@ -1,13 +1,14 @@
+from typing import Any, Dict, List
+
+import structlog
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from slowapi import Limiter
 from slowapi.util import get_remote_address
-from typing import Optional, Dict, Any, List
-import structlog
 
 from app.auth import get_current_client
-from app.services.tvdb_client import tvdb_client
-from app.redis_client import cache
 from app.config import settings
+from app.redis_client import cache
+from app.services.tvdb_client import tvdb_client
 
 logger = structlog.get_logger()
 
@@ -25,13 +26,14 @@ async def search_series(
 ) -> Dict[str, Any]:
     """
     Search for series
-    
+
     - **q**: Search query string
     - **limit**: Maximum number of results to return (1-100)
     """
     try:
-        logger.info("Series search request", query=q, limit=limit, client=current_client.get("client_name"))
-        
+        logger.info("Series search request", query=q, limit=limit,
+                    client=current_client.get("client_name"))
+
         # Check cache first
         cached_results = cache.get("search", f"series:{q.lower()}:{limit}")
         if cached_results:
@@ -45,22 +47,26 @@ async def search_series(
                     "cached": True
                 }
             }
-        
+
         # Perform search (this would integrate with TVDB search endpoint)
         search_results = await tvdb_client.search_series(q)
-        
+
         if search_results is None:
             # Fallback to basic text matching in cached data
             search_results = await _fallback_series_search(q, limit)
-        
+
         # Limit results
         if search_results and len(search_results) > limit:
             search_results = search_results[:limit]
-        
+
         # Cache results
         if search_results:
-            cache.set("search", f"series:{q.lower()}:{limit}", search_results, 1)  # 1 hour cache
-        
+            cache.set(
+                "search",
+                f"series:{q.lower()}:{limit}",
+                search_results,
+                1)  # 1 hour cache
+
         return {
             "data": search_results or [],
             "meta": {
@@ -71,7 +77,7 @@ async def search_series(
                 "cached": False
             }
         }
-        
+
     except HTTPException:
         raise
     except Exception as e:
@@ -92,13 +98,14 @@ async def search_movies(
 ) -> Dict[str, Any]:
     """
     Search for movies
-    
+
     - **q**: Search query string
     - **limit**: Maximum number of results to return (1-100)
     """
     try:
-        logger.info("Movie search request", query=q, limit=limit, client=current_client.get("client_name"))
-        
+        logger.info("Movie search request", query=q, limit=limit,
+                    client=current_client.get("client_name"))
+
         # Check cache first
         cached_results = cache.get("search", f"movies:{q.lower()}:{limit}")
         if cached_results:
@@ -112,14 +119,18 @@ async def search_movies(
                     "cached": True
                 }
             }
-        
+
         # Perform search (placeholder - would integrate with TVDB search)
         search_results = await _fallback_movie_search(q, limit)
-        
+
         # Cache results
         if search_results:
-            cache.set("search", f"movies:{q.lower()}:{limit}", search_results, 1)  # 1 hour cache
-        
+            cache.set(
+                "search",
+                f"movies:{q.lower()}:{limit}",
+                search_results,
+                1)  # 1 hour cache
+
         return {
             "data": search_results or [],
             "meta": {
@@ -130,7 +141,7 @@ async def search_movies(
                 "cached": False
             }
         }
-        
+
     except HTTPException:
         raise
     except Exception as e:
@@ -151,13 +162,14 @@ async def search_people(
 ) -> Dict[str, Any]:
     """
     Search for people (actors, directors, etc.)
-    
+
     - **q**: Search query string
     - **limit**: Maximum number of results to return (1-100)
     """
     try:
-        logger.info("People search request", query=q, limit=limit, client=current_client.get("client_name"))
-        
+        logger.info("People search request", query=q, limit=limit,
+                    client=current_client.get("client_name"))
+
         # Check cache first
         cached_results = cache.get("search", f"people:{q.lower()}:{limit}")
         if cached_results:
@@ -171,14 +183,18 @@ async def search_people(
                     "cached": True
                 }
             }
-        
+
         # Perform search (placeholder - would integrate with TVDB search)
         search_results = await _fallback_people_search(q, limit)
-        
+
         # Cache results
         if search_results:
-            cache.set("search", f"people:{q.lower()}:{limit}", search_results, 1)  # 1 hour cache
-        
+            cache.set(
+                "search",
+                f"people:{q.lower()}:{limit}",
+                search_results,
+                1)  # 1 hour cache
+
         return {
             "data": search_results or [],
             "meta": {
@@ -189,7 +205,7 @@ async def search_people(
                 "cached": False
             }
         }
-        
+
     except HTTPException:
         raise
     except Exception as e:
@@ -210,13 +226,17 @@ async def search_all(
 ) -> Dict[str, Any]:
     """
     Search across all content types (series, movies, people)
-    
+
     - **q**: Search query string
     - **limit**: Maximum number of results per content type (1-100)
     """
     try:
-        logger.info("Universal search request", query=q, limit=limit, client=current_client.get("client_name"))
-        
+        logger.info(
+            "Universal search request",
+            query=q,
+            limit=limit,
+            client=current_client.get("client_name"))
+
         # Check cache first
         cached_results = cache.get("search", f"all:{q.lower()}:{limit}")
         if cached_results:
@@ -230,23 +250,28 @@ async def search_all(
                     "cached": True
                 }
             }
-        
+
         # Perform searches across all types
         series_results = await _fallback_series_search(q, limit)
         movie_results = await _fallback_movie_search(q, limit)
         people_results = await _fallback_people_search(q, limit)
-        
+
         combined_results = {
             "series": series_results or [],
             "movies": movie_results or [],
             "people": people_results or []
         }
-        
+
         # Cache results
-        cache.set("search", f"all:{q.lower()}:{limit}", combined_results, 1)  # 1 hour cache
-        
-        total_count = len(combined_results["series"]) + len(combined_results["movies"]) + len(combined_results["people"])
-        
+        cache.set(
+            "search",
+            f"all:{q.lower()}:{limit}",
+            combined_results,
+            1)  # 1 hour cache
+
+        total_count = len(combined_results["series"]) + len(
+            combined_results["movies"]) + len(combined_results["people"])
+
         return {
             "data": combined_results,
             "meta": {
@@ -262,7 +287,7 @@ async def search_all(
                 "cached": False
             }
         }
-        
+
     except HTTPException:
         raise
     except Exception as e:
@@ -274,7 +299,8 @@ async def search_all(
 
 
 # Fallback search functions (using cached index data)
-async def _fallback_series_search(query: str, limit: int) -> List[Dict[str, Any]]:
+async def _fallback_series_search(
+        query: str, limit: int) -> List[Dict[str, Any]]:
     """Fallback series search using cached index"""
     try:
         # This would search through cached series data
@@ -286,7 +312,8 @@ async def _fallback_series_search(query: str, limit: int) -> List[Dict[str, Any]
         return []
 
 
-async def _fallback_movie_search(query: str, limit: int) -> List[Dict[str, Any]]:
+async def _fallback_movie_search(
+        query: str, limit: int) -> List[Dict[str, Any]]:
     """Fallback movie search using cached index"""
     try:
         # This would search through cached movie data
@@ -297,7 +324,8 @@ async def _fallback_movie_search(query: str, limit: int) -> List[Dict[str, Any]]
         return []
 
 
-async def _fallback_people_search(query: str, limit: int) -> List[Dict[str, Any]]:
+async def _fallback_people_search(
+        query: str, limit: int) -> List[Dict[str, Any]]:
     """Fallback people search using cached index"""
     try:
         # This would search through cached people data
