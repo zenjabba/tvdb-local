@@ -97,7 +97,7 @@ async def create_api_key(
         raise HTTPException(
             status_code=500,
             detail="Failed to create API key"
-        )
+        ) from e
 
 
 @router.get("/api-keys", response_model=ApiKeyList)
@@ -344,7 +344,7 @@ async def rotate_api_key(
         raise HTTPException(
             status_code=500,
             detail="Failed to rotate API key"
-        )
+        ) from e
 
 
 @router.get("/api-keys/stats/usage", response_model=ApiKeyUsageStats)
@@ -407,4 +407,4 @@ async def get_api_key_stats(
         raise HTTPException(
             status_code=500,
             detail="Failed to retrieve API key statistics"
-        )
+        ) from e

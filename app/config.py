@@ -52,13 +52,13 @@ class Settings(BaseSettings):
     s3_use_ssl: bool = True
     s3_verify_ssl: bool = True
     cdn_base_url: Optional[str] = None  # Optional CDN URL for serving images
-    
+
     # Storage Backend Selection
     storage_backend: str = "s3"  # Options: "s3", "local", "none"
     local_storage_path: str = "/app/storage/images"
-    
+
     # Image Storage Configuration - No size limits for 1:1 raw storage
-    
+
     # Image Sync Configuration
     image_sync_batch_size: int = 50
     image_sync_concurrent_downloads: int = 5

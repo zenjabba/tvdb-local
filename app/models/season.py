@@ -30,7 +30,7 @@ class Season(BaseModel):
     # Images
     image = Column(String(500))
     poster = Column(String(500))
-    
+
     # Local image URLs
     local_image_url = Column(String(500))
     local_poster_url = Column(String(500))

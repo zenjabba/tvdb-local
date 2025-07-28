@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import HTTPBearer
 from pydantic import BaseModel
 
-from app.auth import create_access_token, verify_api_key
+from app.auth import create_access_token, verify_api_key, get_current_client
 from app.config import settings
 
 logger = structlog.get_logger()
@@ -65,7 +65,7 @@ async def create_token(token_request: TokenRequest):
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to create token"
-        )
+        ) from e
 
 
 @router.get("/verify")
@@ -76,7 +76,6 @@ async def verify_token(current_client: dict = Depends(lambda: None)):
     This endpoint can be used to verify if the current token is valid
     and retrieve client information.
     """
-    from app.auth import get_current_client
 
     try:
         # This will verify the token and return client info

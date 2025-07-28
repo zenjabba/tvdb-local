@@ -1,15 +1,12 @@
 """TVDB v4 API compliant authentication endpoints"""
-from datetime import timedelta
+from datetime import datetime, timedelta
 from typing import Optional
 
 import structlog
 from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel
-from sqlalchemy.orm import Session
-from sqlalchemy.sql import func
 
 from app.auth import create_access_token
-from app.config import settings
 from app.database import SessionLocal
 from app.models import ApiKey
 
@@ -34,7 +31,7 @@ class LoginResponse(BaseModel):
 async def tvdb_login(credentials: LoginRequest):
     """
     TVDB v4 API compliant login endpoint
-    
+
     Authenticates using apikey and optional pin, returns a bearer token
     that's valid for 1 month as per TVDB specification.
     """
@@ -43,16 +40,16 @@ async def tvdb_login(credentials: LoginRequest):
         # Find the API key in database
         api_key = db.query(ApiKey).filter(
             ApiKey.key == credentials.apikey,
-            ApiKey.active == True
+            ApiKey.active
         ).first()
-        
+
         if not api_key:
             logger.warning("Invalid API key attempted", apikey=credentials.apikey[-4:])
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Invalid credentials"
             )
-        
+
         # Check if PIN is required and validate it
         if api_key.requires_pin:
             if not credentials.pin:
@@ -61,14 +58,14 @@ async def tvdb_login(credentials: LoginRequest):
                     status_code=status.HTTP_401_UNAUTHORIZED,
                     detail="Invalid credentials"
                 )
-            
+
             if api_key.pin != credentials.pin:
                 logger.warning("Invalid PIN provided", apikey=credentials.apikey[-4:])
                 raise HTTPException(
                     status_code=status.HTTP_401_UNAUTHORIZED,
                     detail="Invalid credentials"
                 )
-        
+
         # Check if API key is expired
         if api_key.is_expired:
             logger.warning("Expired API key used", apikey=credentials.apikey[-4:])
@@ -76,12 +73,12 @@ async def tvdb_login(credentials: LoginRequest):
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Invalid credentials"
             )
-        
+
         # Update usage statistics
-        api_key.last_used = func.now()
+        api_key.last_used = datetime.utcnow()
         api_key.total_requests += 1
         db.commit()
-        
+
         # Create JWT token with 1 month validity (TVDB standard)
         access_token_expires = timedelta(days=30)  # 1 month
         access_token = create_access_token(
@@ -93,19 +90,19 @@ async def tvdb_login(credentials: LoginRequest):
             },
             expires_delta=access_token_expires
         )
-        
+
         logger.info(
             "TVDB login successful",
             client_name=api_key.name,
             requires_pin=api_key.requires_pin
         )
-        
+
         # Return TVDB v4 compliant response
         return LoginResponse(
             data={"token": access_token},
             status="success"
         )
-        
+
     except HTTPException:
         raise
     except Exception as e:
@@ -113,7 +110,7 @@ async def tvdb_login(credentials: LoginRequest):
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Authentication service error"
-        )
+        ) from e
     finally:
         db.close()
 

@@ -63,7 +63,7 @@ async def get_movie(
         raise HTTPException(
             status_code=500,
             detail="Failed to fetch movie data"
-        )
+        ) from e
 
 
 @router.post("/{movie_id}/cache/invalidate")
@@ -101,4 +101,4 @@ async def invalidate_movie_cache(
         raise HTTPException(
             status_code=500,
             detail="Failed to invalidate cache"
-        )
+        ) from e

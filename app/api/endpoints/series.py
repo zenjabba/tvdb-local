@@ -6,11 +6,11 @@ from slowapi import Limiter
 from slowapi.util import get_remote_address
 from sqlalchemy.orm import Session
 
+from app.api.utils.image_urls import enrich_with_local_images, get_base_url
 from app.auth import get_current_client
 from app.config import settings
 from app.database import get_db
 from app.services.tvdb_client import tvdb_client
-from app.api.utils.image_urls import enrich_with_local_images, get_base_url
 
 logger = structlog.get_logger()
 
@@ -74,7 +74,7 @@ async def get_series(
         raise HTTPException(
             status_code=500,
             detail="Failed to fetch series data"
-        )
+        ) from e
 
 
 @router.get("/{series_id}/episodes")
@@ -146,7 +146,7 @@ async def get_series_episodes(
         raise HTTPException(
             status_code=500,
             detail="Failed to fetch series episodes"
-        )
+        ) from e
 
 
 @router.get("/{series_id}/seasons/{season_id}")
@@ -195,7 +195,7 @@ async def get_season(
         raise HTTPException(
             status_code=500,
             detail="Failed to fetch season data"
-        )
+        ) from e
 
 
 @router.get("/")
@@ -246,7 +246,7 @@ async def get_all_series(
         raise HTTPException(
             status_code=500,
             detail="Failed to fetch series list"
-        )
+        ) from e
 
 
 @router.post("/{series_id}/cache/invalidate")
@@ -284,4 +284,4 @@ async def invalidate_series_cache(
         raise HTTPException(
             status_code=500,
             detail="Failed to invalidate cache"
-        )
+        ) from e

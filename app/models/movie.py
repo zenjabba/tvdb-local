@@ -57,7 +57,7 @@ class Movie(BaseModel):
     poster = Column(String(500))
     fanart = Column(String(500))
     banner = Column(String(500))
-    
+
     # Local image URLs
     local_image_url = Column(String(500))
     local_poster_url = Column(String(500))

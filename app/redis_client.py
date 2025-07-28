@@ -215,17 +215,17 @@ class TVDBCache:
         """Cache search results with short TTL"""
         search_key = f"search:{result_type}:{query}"
         return cache.set("search", search_key, results, 1)  # 1 hour TTL
-    
+
     @staticmethod
     def get(prefix: str, identifier: Union[str, int]) -> Optional[dict]:
         """Generic get method"""
         return cache.get(prefix, identifier)
-    
+
     @staticmethod
     def set(prefix: str, identifier: Union[str, int], data: dict, ttl_hours: float = None) -> bool:
         """Generic set method"""
         return cache.set(prefix, identifier, data, ttl_hours)
-    
+
     @staticmethod
     def delete(prefix: str, identifier: Union[str, int]) -> bool:
         """Generic delete method"""

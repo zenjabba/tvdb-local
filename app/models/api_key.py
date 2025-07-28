@@ -1,7 +1,7 @@
 import secrets
+from datetime import datetime
 
 from sqlalchemy import Boolean, Column, DateTime, Integer, String, Text
-from sqlalchemy.sql import func
 
 from app.models.base import BaseModel
 
@@ -31,7 +31,7 @@ class ApiKey(BaseModel):
     # PIN support (for user-supported keys)
     requires_pin = Column(Boolean, default=False, nullable=False)
     pin = Column(String(20))  # Optional PIN for user-supported keys
-    
+
     # Admin fields
     created_by = Column(String(100))  # Admin who created the key
 
@@ -45,7 +45,7 @@ class ApiKey(BaseModel):
         """Check if the API key has expired"""
         if not self.expires_at:
             return False
-        return self.expires_at < func.now()
+        return self.expires_at < datetime.utcnow()
 
     @property
     def is_valid(self) -> bool:

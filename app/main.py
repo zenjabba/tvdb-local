@@ -8,10 +8,12 @@ from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
 
+from app.api.endpoints.images import router as images_router
 from app.api.routes import api_router
 from app.config import settings
 from app.database import create_tables
 from app.redis_client import cache
+from app.tvdb_routes import tvdb_router
 
 # Configure structured logging
 structlog.configure(
@@ -154,11 +156,9 @@ app.include_router(api_router, prefix=settings.api_v1_prefix)
 
 # Include TVDB v4 compliant routes at root level
 # This allows the proxy to be a drop-in replacement for TVDB API
-from app.tvdb_routes import tvdb_router
 app.include_router(tvdb_router)
 
 # Include image serving endpoints at /images (TVDB-compliant)
-from app.api.endpoints.images import router as images_router
 app.include_router(images_router, prefix="/images", tags=["images"])
 
 

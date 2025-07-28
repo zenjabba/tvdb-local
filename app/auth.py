@@ -1,6 +1,7 @@
 from datetime import datetime, timedelta
 from typing import Optional
 
+import structlog
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import JWTError, jwt
@@ -62,12 +63,12 @@ def verify_token(token: str) -> dict:
     try:
         payload = jwt.decode(token, settings.secret_key, algorithms=["HS256"])
         return payload
-    except JWTError:
+    except JWTError as exc:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Could not validate credentials",
             headers={"WWW-Authenticate": "Bearer"},
-        )
+        ) from exc
 
 
 def get_db_session() -> Session:
@@ -123,7 +124,6 @@ def verify_api_key(api_key: str) -> dict:
     except HTTPException:
         raise
     except Exception as e:
-        import structlog
         logger = structlog.get_logger()
         logger.error(
             "Database error during API key verification",
@@ -131,7 +131,7 @@ def verify_api_key(api_key: str) -> dict:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Authentication service temporarily unavailable"
-        )
+        ) from e
     finally:
         db.close()
 
@@ -151,19 +151,19 @@ def get_current_client(
     # If JWT fails, try as API key
     try:
         return verify_api_key(token)
-    except HTTPException:
+    except HTTPException as exc:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid authentication credentials",
             headers={"WWW-Authenticate": "Bearer"},
-        )
+        ) from exc
 
 
 def require_admin(
         credentials: HTTPAuthorizationCredentials = Depends(security)) -> dict:
     """Require admin authentication"""
     client = get_current_client(credentials)
-    
+
     # Check if client has admin privileges
     # For now, we'll check against a hardcoded admin key
     # In production, this should check a role/permission in the database
@@ -173,5 +173,5 @@ def require_admin(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Admin access required"
         )
-    
+
     return client

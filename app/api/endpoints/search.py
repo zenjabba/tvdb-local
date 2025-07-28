@@ -85,7 +85,7 @@ async def search_series(
         raise HTTPException(
             status_code=500,
             detail="Search request failed"
-        )
+        ) from e
 
 
 @router.get("/movies")
@@ -149,7 +149,7 @@ async def search_movies(
         raise HTTPException(
             status_code=500,
             detail="Search request failed"
-        )
+        ) from e
 
 
 @router.get("/people")
@@ -213,7 +213,7 @@ async def search_people(
         raise HTTPException(
             status_code=500,
             detail="Search request failed"
-        )
+        ) from e
 
 
 @router.get("/all")
@@ -295,7 +295,7 @@ async def search_all(
         raise HTTPException(
             status_code=500,
             detail="Search request failed"
-        )
+        ) from e
 
 
 # Fallback search functions (using cached index data)

@@ -27,6 +27,7 @@ class ApiKeyCreate(BaseModel):
         None, max_length=20, description="PIN for user-supported keys")
 
     @validator('name')
+    @classmethod
     def validate_name(cls, v):
         if not v.strip():
             raise ValueError('Name cannot be empty or whitespace only')
@@ -43,6 +44,7 @@ class ApiKeyUpdate(BaseModel):
     pin: Optional[str] = Field(None, max_length=20)
 
     @validator('name')
+    @classmethod
     def validate_name(cls, v):
         if v is not None and not v.strip():
             raise ValueError('Name cannot be empty or whitespace only')

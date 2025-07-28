@@ -2,7 +2,7 @@
 from fastapi import APIRouter
 
 from app.api.endpoints import (episodes, movies, people, search, series,
-                              tvdb_auth)
+                               tvdb_auth)
 
 # Create router without prefix to match TVDB API structure
 tvdb_router = APIRouter()
@@ -14,7 +14,7 @@ tvdb_router.include_router(tvdb_auth.router, tags=["authentication"])
 v4_router = APIRouter(prefix="/v4")
 
 v4_router.include_router(series.router, prefix="/series", tags=["series"])
-v4_router.include_router(movies.router, prefix="/movies", tags=["movies"]) 
+v4_router.include_router(movies.router, prefix="/movies", tags=["movies"])
 v4_router.include_router(episodes.router, prefix="/episodes", tags=["episodes"])
 v4_router.include_router(people.router, prefix="/people", tags=["people"])
 v4_router.include_router(search.router, prefix="/search", tags=["search"])

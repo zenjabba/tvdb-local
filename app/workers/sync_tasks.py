@@ -409,7 +409,7 @@ def _process_update_item(db: Session, item: Dict[str, Any]):
 def sync_content_images(self, content_type: str, content_id: int):
     """
     Sync images for a specific content item
-    
+
     Args:
         content_type: Type of content (series, movie, episode, season, person)
         content_id: Database ID of the content
@@ -419,7 +419,7 @@ def sync_content_images(self, content_type: str, content_id: int):
         content_type=content_type,
         content_id=content_id
     )
-    
+
     try:
         with get_db_session() as db:
             # Get content from database
@@ -431,28 +431,28 @@ def sync_content_images(self, content_type: str, content_id: int):
                     content_id=content_id
                 )
                 return {"status": "failed", "message": "Content not found"}
-            
+
             # Sync direct image fields
             synced_images = {}
             image_fields = _get_content_image_fields(content_type)
-            
+
             # Collect all image URLs to download
             image_downloads = []
             for field_name in image_fields:
                 image_url = getattr(content, field_name, None)
                 if image_url:
                     image_downloads.append((field_name, image_url))
-            
+
             # Download all images in a single event loop
             if image_downloads:
                 synced_images = asyncio.run(_sync_content_images_async(
                     image_downloads, content_type, content_id, content
                 ))
-            
+
             # Commit content image updates
             if synced_images:
                 db.commit()
-            
+
             # Sync artwork if available
             if hasattr(content, "artwork"):
                 # Collect all artwork URLs to download
@@ -462,28 +462,28 @@ def sync_content_images(self, content_type: str, content_id: int):
                         artwork_downloads.append(("image", artwork.image_url, artwork))
                     if artwork.thumbnail_url:
                         artwork_downloads.append(("thumbnail", artwork.thumbnail_url, artwork))
-                
+
                 # Download all artwork images in a single event loop
                 artwork_count = 0
                 if artwork_downloads:
                     artwork_count = asyncio.run(_sync_artwork_images_async(artwork_downloads))
-                
+
                 # Commit artwork updates
                 if artwork_count > 0:
                     db.commit()
-                
+
                 logger.info(
                     "Artwork sync completed",
                     count=artwork_count
                 )
-            
+
             return {
                 "status": "completed",
                 "content_type": content_type,
                 "content_id": content_id,
                 "synced_images": synced_images
             }
-            
+
     except Exception as e:
         logger.error(
             "Image sync task failed",
@@ -491,7 +491,7 @@ def sync_content_images(self, content_type: str, content_id: int):
             content_id=content_id,
             error=str(e)
         )
-        
+
         # Retry the task
         raise self.retry(exc=e)
 
@@ -500,7 +500,7 @@ def sync_content_images(self, content_type: str, content_id: int):
 def sync_all_missing_images(self, content_type: str = None, limit: int = 100):
     """
     Find and sync images for content that doesn't have local images
-    
+
     Args:
         content_type: Optional filter by content type
         limit: Maximum number of items to process
@@ -510,40 +510,40 @@ def sync_all_missing_images(self, content_type: str = None, limit: int = 100):
         content_type=content_type,
         limit=limit
     )
-    
+
     try:
         with get_db_session() as db:
             processed = 0
-            
+
             # Process each content type
             content_types = [content_type] if content_type else [
                 "series", "movie", "episode", "season", "person"
             ]
-            
+
             for ct in content_types:
                 items = _get_content_without_local_images(db, ct, limit)
-                
+
                 for item in items:
                     # Queue individual sync task
                     sync_content_images.delay(ct, item.id)
                     processed += 1
-                    
+
                     if processed >= limit:
                         break
-                
+
                 if processed >= limit:
                     break
-            
+
             logger.info(
                 "Missing images sync queued",
                 processed=processed
             )
-            
+
             return {
                 "status": "completed",
                 "queued": processed
             }
-            
+
     except Exception as e:
         logger.error(
             "Missing images sync failed",
@@ -556,7 +556,7 @@ def sync_all_missing_images(self, content_type: str = None, limit: int = 100):
 def cleanup_orphaned_images(self):
     """Clean up images in storage that no longer have database references"""
     logger.info("Starting orphaned images cleanup")
-    
+
     try:
         with get_db_session() as db:
             # Get all active entity IDs
@@ -568,21 +568,21 @@ def cleanup_orphaned_images(self):
                 "person": [p.id for p in db.query(Person.id).all()],
                 "artwork": [a.id for a in db.query(Artwork.id).all()]
             }
-            
+
             deleted_count = asyncio.run(
                 image_service.cleanup_orphaned_images(active_entity_ids)
             )
-            
+
             logger.info(
                 "Orphaned images cleanup completed",
                 deleted_count=deleted_count
             )
-            
+
             return {
                 "status": "completed",
                 "deleted_count": deleted_count
             }
-            
+
     except Exception as e:
         logger.error(
             "Orphaned images cleanup failed",
@@ -600,7 +600,7 @@ def _get_content_by_id(db: Session, content_type: str, content_id: int):
         "season": Season,
         "person": Person
     }
-    
+
     model = model_map.get(content_type)
     if model:
         return db.query(model).filter(model.id == content_id).first()
@@ -632,15 +632,15 @@ def _get_content_without_local_images(
         "season": Season,
         "person": Person
     }
-    
+
     model = model_map.get(content_type)
     if not model:
         return []
-    
+
     # Query for items with image URLs but no local processing
     # This is a simplified query - in practice you'd check for local_image_url field
     query = db.query(model)
-    
+
     # Filter by items that have source images
     if content_type in ["series", "movie", "person"]:
         query = query.filter(model.image.isnot(None))
@@ -658,16 +658,16 @@ def _get_content_without_local_images(
                 model.poster.isnot(None)
             )
         )
-    
+
     return query.limit(limit).all()
 
 
 async def _sync_content_images_async(image_downloads, content_type, content_id, content):
     """Download and store content images in a single async context."""
     from app.services.image_service import ImageService
-    
+
     synced_images = {}
-    
+
     # Create a fresh ImageService instance for this task
     async with ImageService() as image_service:
         for field_name, image_url in image_downloads:
@@ -682,10 +682,10 @@ async def _sync_content_images_async(image_downloads, content_type, content_id, 
                 if stored_key:
                     synced_images[field_name] = stored_key
                     # Update the local image URL in the database
-                    setattr(content, f"local_{field_name}_url", 
-                           image_service.get_local_image_url(
-                               content_type, content_id, field_name
-                           ))
+                    setattr(content, f"local_{field_name}_url",
+                            image_service.get_local_image_url(
+                                content_type, content_id, field_name
+                            ))
                 logger.info(
                     "Image synced",
                     field=field_name,
@@ -697,17 +697,16 @@ async def _sync_content_images_async(image_downloads, content_type, content_id, 
                     field=field_name,
                     error=str(e)
                 )
-    
+
     return synced_images
 
 
 async def _sync_artwork_images_async(artwork_downloads):
     """Download and store artwork images in a single async context."""
     from app.services.image_service import ImageService
-    from datetime import datetime
-    
+
     artwork_count = 0
-    
+
     # Create a fresh ImageService instance for this task
     async with ImageService() as image_service:
         for image_type, image_url, artwork in artwork_downloads:
@@ -724,6 +723,7 @@ async def _sync_artwork_images_async(artwork_downloads):
                             "artwork", artwork.id, "image"
                         )
                         artwork.storage_path = stored_key
+                        from datetime import datetime
                         artwork.processed_at = datetime.utcnow()
                         artwork_count += 1
                     elif image_type == "thumbnail":
@@ -737,5 +737,5 @@ async def _sync_artwork_images_async(artwork_downloads):
                     image_type=image_type,
                     error=str(e)
                 )
-    
+
     return artwork_count
