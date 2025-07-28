@@ -17,6 +17,12 @@ A high-performance caching proxy for TVDB API v4 with **database-backed API key 
 
 ## Quick Start
 
+### Docker Images
+
+Pre-built Docker images are available on Docker Hub:
+- API: `docker pull zenjabba/tvdb-local:latest`
+- Worker: `docker pull zenjabba/tvdb-local-worker:latest`
+
 ### Prerequisites
 
 - Docker and Docker Compose

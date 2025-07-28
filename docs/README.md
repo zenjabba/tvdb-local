@@ -13,6 +13,16 @@ Comprehensive guide on TVDB v4 API compatibility, including:
 - Configuration for existing TVDB applications
 - Testing compliance
 
+### [Docker Guide](DOCKER.md)
+Information about Docker images and deployment:
+- Available Docker Hub images
+- Docker Compose configuration
+- Environment variables
+- Multi-architecture support
+
+### [Security](SECURITY.md)
+Security policies and vulnerability reporting
+
 ## Additional Resources
 
 - **Main README**: See the [project README](../README.md) for quick start and overview

@@ -1,4 +1,5 @@
-FROM python:3.11-slim
+# Base stage with common dependencies
+FROM python:3.11-slim AS base
 
 # Set working directory
 WORKDIR /app
@@ -21,10 +22,22 @@ COPY . .
 # Create non-root user
 RUN useradd --create-home --shell /bin/bash app \
     && chown -R app:app /app
+
+# API stage (default)
+FROM base AS api
 USER app
-
-# Expose port
 EXPOSE 8000
-
-# Default command (can be overridden in docker-compose)
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+
+# Worker stage
+FROM base AS worker
+USER app
+CMD ["celery", "-A", "app.workers.celery_app", "worker", "--loglevel=info"]
+
+# Scheduler stage
+FROM base AS scheduler
+USER app
+CMD ["celery", "-A", "app.workers.celery_app", "beat", "--loglevel=info"]
+
+# Default stage
+FROM api
