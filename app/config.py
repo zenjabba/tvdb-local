@@ -43,6 +43,29 @@ class Settings(BaseSettings):
     version: str = "1.0.0"
     debug: bool = False
 
+    # S3/Storage Configuration (Ceph S3 Compatible)
+    s3_endpoint_url: Optional[str] = None  # For Ceph/MinIO/S3-compatible storage
+    s3_access_key_id: Optional[str] = None
+    s3_secret_access_key: Optional[str] = None
+    s3_region: str = "us-east-1"
+    s3_bucket_name: str = "tvdb-images"  # Single bucket with prefixes
+    s3_use_ssl: bool = True
+    s3_verify_ssl: bool = True
+    cdn_base_url: Optional[str] = None  # Optional CDN URL for serving images
+    
+    # Storage Backend Selection
+    storage_backend: str = "s3"  # Options: "s3", "local", "none"
+    local_storage_path: str = "/app/storage/images"
+    
+    # Image Storage Configuration
+    max_image_file_size_mb: int = 50  # Increased for raw images
+    
+    # Image Sync Configuration
+    image_sync_batch_size: int = 50
+    image_sync_concurrent_downloads: int = 5
+    image_sync_retry_failed: bool = True
+    image_sync_retry_after_hours: int = 24
+
     class Config:
         env_file = ".env"
         case_sensitive = False

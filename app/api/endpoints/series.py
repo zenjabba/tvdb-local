@@ -4,10 +4,13 @@ import structlog
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from slowapi import Limiter
 from slowapi.util import get_remote_address
+from sqlalchemy.orm import Session
 
 from app.auth import get_current_client
 from app.config import settings
+from app.database import get_db
 from app.services.tvdb_client import tvdb_client
+from app.api.utils.image_urls import enrich_with_local_images, get_base_url
 
 logger = structlog.get_logger()
 
@@ -21,7 +24,8 @@ async def get_series(
     request: Request,
     series_id: int,
     extended: bool = Query(False, description="Return extended series information"),
-    current_client: dict = Depends(get_current_client)
+    current_client: dict = Depends(get_current_client),
+    db: Session = Depends(get_db)
 ) -> Dict[str, Any]:
     """
     Get series information by TVDB ID
@@ -46,6 +50,10 @@ async def get_series(
                 status_code=404,
                 detail=f"Series with ID {series_id} not found"
             )
+
+        # Enrich with local image URLs
+        base_url = get_base_url(request)
+        series_data = enrich_with_local_images(series_data, 'series', db, base_url)
 
         return {
             "data": series_data,

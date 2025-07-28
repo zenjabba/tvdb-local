@@ -41,6 +41,13 @@ class Artwork(BaseModel):
     tags = Column(JSONB)
     status = Column(String(50))  # active, inactive, etc.
 
+    # Local storage fields
+    local_image_url = Column(String(500))
+    local_thumbnail_url = Column(String(500))
+    storage_path = Column(String(500))
+    processed_at = Column(DateTime(timezone=True))
+    file_size = Column(Integer)  # Size in bytes
+
     # Cache control
     last_synced = Column(DateTime(timezone=True))
 

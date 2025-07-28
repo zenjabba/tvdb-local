@@ -28,6 +28,9 @@ class Person(BaseModel):
 
     # Images
     image = Column(String(500))
+    
+    # Local image URL
+    local_image_url = Column(String(500))
 
     # Extended metadata
     aliases = Column(JSONB)

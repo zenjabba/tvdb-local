@@ -157,3 +157,21 @@ def get_current_client(
             detail="Invalid authentication credentials",
             headers={"WWW-Authenticate": "Bearer"},
         )
+
+
+def require_admin(
+        credentials: HTTPAuthorizationCredentials = Depends(security)) -> dict:
+    """Require admin authentication"""
+    client = get_current_client(credentials)
+    
+    # Check if client has admin privileges
+    # For now, we'll check against a hardcoded admin key
+    # In production, this should check a role/permission in the database
+    admin_key = client.get("api_key") or client.get("sub")  # JWT tokens use 'sub' field
+    if admin_key != "admin-super-key-change-in-production":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin access required"
+        )
+    
+    return client

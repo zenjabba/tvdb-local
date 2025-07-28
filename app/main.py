@@ -157,6 +157,10 @@ app.include_router(api_router, prefix=settings.api_v1_prefix)
 from app.tvdb_routes import tvdb_router
 app.include_router(tvdb_router)
 
+# Include image serving endpoints at /images (TVDB-compliant)
+from app.api.endpoints.images import router as images_router
+app.include_router(images_router, prefix="/images", tags=["images"])
+
 
 # Global exception handler
 @app.exception_handler(Exception)

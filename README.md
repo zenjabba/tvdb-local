@@ -563,19 +563,6 @@ curl -H "Authorization: Bearer admin-super-key-change-in-production" \
   "http://localhost:8888/api/v1/admin/api-keys/4"
 ```
 
-### Database-Backed Features
-
-The system now includes advanced database-backed API key management:
-
-✅ **Already Implemented**:
-- PostgreSQL storage for all API keys
-- REST API endpoints for full CRUD operations  
-- Real-time usage tracking and statistics
-- Secure key generation and rotation
-- Rate limiting per key
-- Key expiration and activation controls
-- Admin authentication and authorization
-- Audit trail with creation timestamps
 
 ### Troubleshooting
 
