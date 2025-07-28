@@ -30,6 +30,9 @@ jobs:
     
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v3
+      with:
+        driver: docker-container
+        buildkitd-flags: --debug
     
     - name: Log in to Docker Hub
       if: github.event_name != 'pull_request'
@@ -62,6 +65,7 @@ jobs:
         labels: ${{ steps.meta.outputs.labels }}
         cache-from: type=gha
         cache-to: type=gha,mode=max
+        provenance: false
         build-args: |
           BUILD_DATE=${{ fromJSON(steps.meta.outputs.json).labels['org.opencontainers.image.created'] }}
           VERSION=${{ fromJSON(steps.meta.outputs.json).labels['org.opencontainers.image.version'] }}
@@ -81,6 +85,9 @@ jobs:
     
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v3
+      with:
+        driver: docker-container
+        buildkitd-flags: --debug
     
     - name: Log in to Docker Hub
       if: github.event_name != 'pull_request'
@@ -114,6 +121,7 @@ jobs:
         cache-from: type=gha
         cache-to: type=gha,mode=max
         target: worker
+        provenance: false
         build-args: |
           BUILD_DATE=${{ fromJSON(steps.meta-worker.outputs.json).labels['org.opencontainers.image.created'] }}
           VERSION=${{ fromJSON(steps.meta-worker.outputs.json).labels['org.opencontainers.image.version'] }}
