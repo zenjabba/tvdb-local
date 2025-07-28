@@ -5,7 +5,7 @@ import tvdb_v4_official
 from tenacity import retry, stop_after_attempt, wait_exponential
 
 from app.config import settings
-from app.redis_client import TVDBCache
+from app.redis_client import TVDBCache, cache
 
 logger = structlog.get_logger()
 
@@ -119,7 +119,7 @@ class TVDBClient:
         cache_key = f"{series_id}_episodes_page_{page}"
 
         if use_cache:
-            cached = self.cache.get("episodes", cache_key)
+            cached = cache.get("episodes", cache_key)
             if cached:
                 logger.debug(
                     "Series episodes cache hit",
@@ -129,10 +129,10 @@ class TVDBClient:
 
         try:
             client = self._get_client()
-            episodes_data = client.get_series_episodes(series_id, page)
+            episodes_data = client.get_series_episodes(series_id, season_type='default', page=page)
 
             if episodes_data:
-                self.cache.set(
+                cache.set(
                     "episodes",
                     cache_key,
                     episodes_data,
@@ -149,7 +149,7 @@ class TVDBClient:
                 series_id=series_id,
                 page=page,
                 error=str(e))
-            cached = self.cache.get("episodes", cache_key)
+            cached = cache.get("episodes", cache_key)
             if cached:
                 logger.warning(
                     "Returning stale cached episodes data",

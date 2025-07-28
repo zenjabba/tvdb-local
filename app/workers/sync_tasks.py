@@ -273,22 +273,31 @@ def _update_or_create_series(db: Session, series_data: Dict[str, Any]):
 
     series = db.query(Series).filter(Series.tvdb_id == tvdb_id).first()
 
+    # Extract relevant fields from TVDB response
+    series_fields = {
+        'name': series_data.get('name', ''),
+        'slug': series_data.get('slug', ''),
+        'overview': series_data.get('overview', ''),
+        'year': series_data.get('year'),
+        'first_aired': series_data.get('firstAired'),
+        'original_country': series_data.get('originalCountry'),
+        'original_language': series_data.get('originalLanguage'),
+        'average_runtime': series_data.get('averageRuntime'),
+        'score': series_data.get('score'),
+        'image': series_data.get('image'),
+        'imdb_id': next((r.get('id') for r in series_data.get('remoteIds', []) if r.get('type') == 2), None),
+        'aliases': [a.get('name') for a in series_data.get('aliases', [])],
+        'last_synced': datetime.utcnow()
+    }
+
     if series:
         # Update existing series
-        for key, value in series_data.items():
-            if hasattr(series, key) and key != 'id':
+        for key, value in series_fields.items():
+            if hasattr(series, key):
                 setattr(series, key, value)
-        series.last_synced = datetime.utcnow()
     else:
         # Create new series
-        series = Series(
-            tvdb_id=tvdb_id,
-            name=series_data.get('name', ''),
-            slug=series_data.get('slug', ''),
-            overview=series_data.get('overview', ''),
-            # Map other fields as needed
-            last_synced=datetime.utcnow()
-        )
+        series = Series(tvdb_id=tvdb_id, **series_fields)
         db.add(series)
 
     logger.debug("Series updated/created", tvdb_id=tvdb_id)
@@ -301,32 +310,44 @@ def _update_or_create_episode(
     if not tvdb_id:
         return
 
+    # Get the series record to link the episode
+    series = db.query(Series).filter(Series.tvdb_id == series_id).first()
+    if not series:
+        logger.error("Series not found for episode", series_id=series_id)
+        return
+
     episode = db.query(Episode).filter(Episode.tvdb_id == tvdb_id).first()
+
+    # Extract relevant fields from TVDB response
+    episode_fields = {
+        'name': episode_data.get('name', ''),
+        'overview': episode_data.get('overview', ''),
+        'number': episode_data.get('number'),
+        'season_number': episode_data.get('seasonNumber'),
+        'air_date': episode_data.get('aired'),
+        'runtime': episode_data.get('runtime'),
+        'image': episode_data.get('image'),
+        'last_synced': datetime.utcnow()
+    }
 
     if episode:
         # Update existing episode
-        for key, value in episode_data.items():
-            if hasattr(episode, key) and key != 'id':
+        for key, value in episode_fields.items():
+            if hasattr(episode, key):
                 setattr(episode, key, value)
-        episode.last_synced = datetime.utcnow()
     else:
         # Create new episode
         episode = Episode(
             tvdb_id=tvdb_id,
-            series_id=series_id,
-            name=episode_data.get('name', ''),
-            overview=episode_data.get('overview', ''),
-            number=episode_data.get('number'),
-            season_number=episode_data.get('seasonNumber'),
-            # Map other fields as needed
-            last_synced=datetime.utcnow()
+            series_id=series.id,  # Use the database ID, not TVDB ID
+            **episode_fields
         )
         db.add(episode)
 
     logger.debug(
         "Episode updated/created",
         tvdb_id=tvdb_id,
-        series_id=series_id)
+        series_tvdb_id=series_id)
 
 
 def _get_last_sync_time(db: Session) -> datetime:
