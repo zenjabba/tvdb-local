@@ -1,6 +1,5 @@
 """Utilities for handling image URLs in API responses."""
-from typing import Any, Dict, Optional
-from urllib.parse import urlparse
+from typing import Any, Dict
 
 from sqlalchemy.orm import Session
 
@@ -29,10 +28,9 @@ def get_base_url(request) -> str:
 
     if (scheme == 'https' and port == 443) or (scheme == 'http' and port == 80):
         return f"{scheme}://{host}"
-    elif port:
+    if port:
         return f"{scheme}://{host}:{port}"
-    else:
-        return f"{scheme}://{host}"
+    return f"{scheme}://{host}"
 
 
 def enrich_with_local_images(data: Dict[str, Any], entity_type: str,

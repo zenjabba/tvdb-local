@@ -289,7 +289,7 @@ async def delete_api_key(
         raise HTTPException(
             status_code=500,
             detail="Failed to delete API key"
-        )
+        ) from e
 
 
 @router.post("/api-keys/{key_id}/rotate", response_model=ApiKeyRotateResponse)

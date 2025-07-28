@@ -57,7 +57,7 @@ async def get_episode(
         raise HTTPException(
             status_code=500,
             detail="Failed to fetch episode data"
-        )
+        ) from e
 
 
 @router.post("/{episode_id}/cache/invalidate")
@@ -95,4 +95,4 @@ async def invalidate_episode_cache(
         raise HTTPException(
             status_code=500,
             detail="Failed to invalidate cache"
-        )
+        ) from e

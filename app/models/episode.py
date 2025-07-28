@@ -68,4 +68,7 @@ class Episode(BaseModel):
         cascade="all, delete-orphan")
 
     def __repr__(self):
-        return f"<Episode(tvdb_id={self.tvdb_id}, series_id={self.series_id}, number={self.number})>"
+        return (
+            f"<Episode(tvdb_id={self.tvdb_id}, "
+            f"series_id={self.series_id}, number={self.number})>"
+        )

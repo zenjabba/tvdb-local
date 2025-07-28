@@ -26,7 +26,9 @@ structlog.configure(
         structlog.processors.StackInfoRenderer(),
         structlog.processors.format_exc_info,
         structlog.processors.UnicodeDecoder(),
-        structlog.processors.JSONRenderer() if settings.structured_logging else structlog.dev.ConsoleRenderer(),
+        structlog.processors.JSONRenderer()
+        if settings.structured_logging
+        else structlog.dev.ConsoleRenderer(),
     ],
     context_class=dict,
     logger_factory=structlog.stdlib.LoggerFactory(),
@@ -124,7 +126,10 @@ async def health_check():
     # Check database would go here
     db_status = "healthy"  # Simplified for now
 
-    overall_status = "healthy" if redis_status == "healthy" and db_status == "healthy" else "unhealthy"
+    overall_status = (
+        "healthy" if redis_status == "healthy" and db_status == "healthy"
+        else "unhealthy"
+    )
 
     return {
         "status": overall_status,

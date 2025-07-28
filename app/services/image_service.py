@@ -63,11 +63,11 @@ class ImageService:
         if content_type:
             if 'jpeg' in content_type or 'jpg' in content_type:
                 return 'jpg'
-            elif 'png' in content_type:
+            if 'png' in content_type:
                 return 'png'
-            elif 'gif' in content_type:
+            if 'gif' in content_type:
                 return 'gif'
-            elif 'webp' in content_type:
+            if 'webp' in content_type:
                 return 'webp'
 
         # Default to jpg

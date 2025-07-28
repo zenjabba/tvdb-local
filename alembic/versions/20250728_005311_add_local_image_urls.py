@@ -23,30 +23,30 @@ def upgrade() -> None:
     op.add_column('artwork', sa.Column('storage_path', sa.String(500), nullable=True))
     op.add_column('artwork', sa.Column('processed_at', sa.DateTime(timezone=True), nullable=True))
     op.add_column('artwork', sa.Column('file_size', sa.Integer(), nullable=True))
-    
+
     # Add local image URL fields to series table
     op.add_column('series', sa.Column('local_image_url', sa.String(500), nullable=True))
     op.add_column('series', sa.Column('local_banner_url', sa.String(500), nullable=True))
     op.add_column('series', sa.Column('local_poster_url', sa.String(500), nullable=True))
     op.add_column('series', sa.Column('local_fanart_url', sa.String(500), nullable=True))
-    
+
     # Add local image URL fields to movies table
     op.add_column('movies', sa.Column('local_image_url', sa.String(500), nullable=True))
     op.add_column('movies', sa.Column('local_poster_url', sa.String(500), nullable=True))
     op.add_column('movies', sa.Column('local_fanart_url', sa.String(500), nullable=True))
     op.add_column('movies', sa.Column('local_banner_url', sa.String(500), nullable=True))
-    
+
     # Add local image URL fields to episodes table
     op.add_column('episodes', sa.Column('local_image_url', sa.String(500), nullable=True))
     op.add_column('episodes', sa.Column('local_thumbnail_url', sa.String(500), nullable=True))
-    
+
     # Add local image URL fields to seasons table
     op.add_column('seasons', sa.Column('local_image_url', sa.String(500), nullable=True))
     op.add_column('seasons', sa.Column('local_poster_url', sa.String(500), nullable=True))
-    
+
     # Add local image URL field to people table
     op.add_column('people', sa.Column('local_image_url', sa.String(500), nullable=True))
-    
+
     # Create indexes for faster lookups
     op.create_index('idx_artwork_local_image_url', 'artwork', ['local_image_url'])
     op.create_index('idx_artwork_processed_at', 'artwork', ['processed_at'])
@@ -56,30 +56,30 @@ def downgrade() -> None:
     # Drop indexes
     op.drop_index('idx_artwork_processed_at', 'artwork')
     op.drop_index('idx_artwork_local_image_url', 'artwork')
-    
+
     # Remove columns from people table
     op.drop_column('people', 'local_image_url')
-    
+
     # Remove columns from seasons table
     op.drop_column('seasons', 'local_poster_url')
     op.drop_column('seasons', 'local_image_url')
-    
+
     # Remove columns from episodes table
     op.drop_column('episodes', 'local_thumbnail_url')
     op.drop_column('episodes', 'local_image_url')
-    
+
     # Remove columns from movies table
     op.drop_column('movies', 'local_banner_url')
     op.drop_column('movies', 'local_fanart_url')
     op.drop_column('movies', 'local_poster_url')
     op.drop_column('movies', 'local_image_url')
-    
+
     # Remove columns from series table
     op.drop_column('series', 'local_fanart_url')
     op.drop_column('series', 'local_poster_url')
     op.drop_column('series', 'local_banner_url')
     op.drop_column('series', 'local_image_url')
-    
+
     # Remove columns from artwork table
     op.drop_column('artwork', 'file_size')
     op.drop_column('artwork', 'processed_at')

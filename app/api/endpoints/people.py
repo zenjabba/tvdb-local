@@ -57,7 +57,7 @@ async def get_person(
         raise HTTPException(
             status_code=500,
             detail="Failed to fetch person data"
-        )
+        ) from e
 
 
 @router.post("/{person_id}/cache/invalidate")
@@ -95,4 +95,4 @@ async def invalidate_person_cache(
         raise HTTPException(
             status_code=500,
             detail="Failed to invalidate cache"
-        )
+        ) from e

@@ -43,10 +43,10 @@ def create_api_key(
         "rate_limit": rate_limit,
         "requires_pin": requires_pin
     }
-    
+
     if requires_pin and pin:
         payload["pin"] = pin
-    
+
     response = requests.post(
         f"{BASE_URL}/api/v1/admin/api-keys",
         headers={"Authorization": f"Bearer {token}"},
@@ -68,12 +68,12 @@ def list_api_keys(token: str) -> list:
 
 def main():
     print("=== TVDB Proxy API Key Management ===\n")
-    
+
     # Get admin token
     print("1. Getting admin token...")
     admin_token = get_admin_token()
     print("Admin authenticated\n")
-    
+
     # Create a licensed key (no PIN)
     print("2. Creating licensed API key (no PIN required)...")
     licensed_key = create_api_key(
@@ -86,7 +86,7 @@ def main():
     print(f"Created: {licensed_key['name']}")
     print(f"   Key: {licensed_key['key']}")
     print(f"   Rate limit: {licensed_key['rate_limit']}/min\n")
-    
+
     # Create a user-supported key (with PIN)
     print("3. Creating user-supported API key (PIN required)...")
     user_key = create_api_key(
@@ -101,12 +101,12 @@ def main():
     print(f"   Key: {user_key['key']}")
     print(f"   PIN: user123")
     print(f"   Rate limit: {user_key['rate_limit']}/min\n")
-    
+
     # List all keys
     print("4. Listing all API keys...")
     keys = list_api_keys(admin_token)
     print(f"Total keys: {len(keys)}\n")
-    
+
     for key in keys:
         pin_status = "PIN required" if key['requires_pin'] else "No PIN"
         print(f"   - {key['name']} ({pin_status})")
@@ -114,15 +114,15 @@ def main():
         print(f"     Active: {key['active']}")
         print(f"     Total requests: {key['total_requests']}")
         print()
-    
+
     # Example: How users would authenticate
     print("=== User Authentication Examples ===\n")
-    
+
     print("Licensed key (no PIN):")
     print(f"curl -X POST {BASE_URL}/login \\")
     print(f'  -H "Content-Type: application/json" \\')
     print(f'  -d \'{{"apikey": "{licensed_key["key"]}"}}\'\n')
-    
+
     print("User-supported key (with PIN):")
     print(f"curl -X POST {BASE_URL}/login \\")
     print(f'  -H "Content-Type: application/json" \\')

@@ -77,7 +77,7 @@ async def sync_missing_images(
         Task information
     """
     if limit > 1000:
-        raise HTTPException(status_code=400, detail="Limit cannot exceed 1000") from e
+        raise HTTPException(status_code=400, detail="Limit cannot exceed 1000")
 
     if entity_type:
         valid_types = ["series", "movie", "episode", "person", "season"]

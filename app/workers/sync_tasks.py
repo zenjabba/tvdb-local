@@ -291,7 +291,10 @@ def _update_or_create_series(db: Session, series_data: Dict[str, Any]):
         'average_runtime': series_data.get('averageRuntime'),
         'score': series_data.get('score'),
         'image': series_data.get('image'),
-        'imdb_id': next((r.get('id') for r in series_data.get('remoteIds', []) if r.get('type') == 2), None),
+        'imdb_id': next(
+            (r.get('id') for r in series_data.get('remoteIds', []) if r.get('type') == 2),
+            None
+        ),
         'aliases': [a.get('name') for a in series_data.get('aliases', [])],
         'last_synced': datetime.utcnow()
     }
@@ -669,11 +672,11 @@ async def _sync_content_images_async(image_downloads, content_type, content_id, 
     synced_images = {}
 
     # Create a fresh ImageService instance for this task
-    async with ImageService() as image_service:
+    async with ImageService() as img_service:
         for field_name, image_url in image_downloads:
             try:
                 # Download and store the image
-                stored_key = await image_service.download_and_store_image(
+                stored_key = await img_service.download_and_store_image(
                     image_url,
                     content_type,
                     content_id,
@@ -683,7 +686,7 @@ async def _sync_content_images_async(image_downloads, content_type, content_id, 
                     synced_images[field_name] = stored_key
                     # Update the local image URL in the database
                     setattr(content, f"local_{field_name}_url",
-                            image_service.get_local_image_url(
+                            img_service.get_local_image_url(
                                 content_type, content_id, field_name
                             ))
                 logger.info(
@@ -708,10 +711,10 @@ async def _sync_artwork_images_async(artwork_downloads):
     artwork_count = 0
 
     # Create a fresh ImageService instance for this task
-    async with ImageService() as image_service:
+    async with ImageService() as img_service:
         for image_type, image_url, artwork in artwork_downloads:
             try:
-                stored_key = await image_service.download_and_store_image(
+                stored_key = await img_service.download_and_store_image(
                     image_url,
                     "artwork",
                     artwork.id,
@@ -719,15 +722,15 @@ async def _sync_artwork_images_async(artwork_downloads):
                 )
                 if stored_key:
                     if image_type == "image":
-                        artwork.local_image_url = image_service.get_local_image_url(
+                        artwork.local_image_url = img_service.get_local_image_url(
                             "artwork", artwork.id, "image"
                         )
                         artwork.storage_path = stored_key
-                        from datetime import datetime
-                        artwork.processed_at = datetime.utcnow()
+                        from datetime import datetime as dt
+                        artwork.processed_at = dt.utcnow()
                         artwork_count += 1
                     elif image_type == "thumbnail":
-                        artwork.local_thumbnail_url = image_service.get_local_image_url(
+                        artwork.local_thumbnail_url = img_service.get_local_image_url(
                             "artwork", artwork.id, "thumbnail"
                         )
             except Exception as e:
