@@ -12,6 +12,8 @@ A high-performance caching proxy for TVDB API v4 with **database-backed API key 
 - 🔄 **Auto-Sync**: Background workers keep data up-to-date
 - 🛡️ **Rate Limiting**: Configurable rate limiting per client
 - 📊 **Usage Analytics**: Track API usage per client with real-time statistics
+- 🖼️ **S3 Image Storage**: Ceph S3 compatible storage for TVDB images with 1:1 raw storage
+- 🎯 **Image Proxy**: Serve images through application without exposing S3 URLs
 - 🐳 **Docker Ready**: Complete containerized deployment
 - 📖 **Well Documented**: Comprehensive docs and examples
 
@@ -38,26 +40,51 @@ cp .env.example .env
 
 ### 2. Configure Environment
 
-Edit `.env` file with your TVDB API key:
+Edit `.env` file with your TVDB API key and S3 configuration:
 
 ```env
+# TVDB Configuration
 TVDB_API_KEY=your_tvdb_api_key_here
 TVDB_PIN=your_optional_pin_here
 SECRET_KEY=generate_a_secure_secret_key
+
+# S3/Ceph Storage Configuration
+S3_ENDPOINT_URL=https://your-ceph-cluster.example.com  # For production
+# S3_ENDPOINT_URL=http://tvdb-minio:9000                # For development with MinIO
+S3_ACCESS_KEY_ID=your_access_key
+S3_SECRET_ACCESS_KEY=your_secret_key
+S3_BUCKET_NAME=tvdb-images
+STORAGE_BACKEND=s3
 ```
 
 ### 3. Start Services
 
+#### Development/Testing (with local MinIO S3 storage)
 ```bash
-docker-compose up -d
+docker-compose -f docker-compose.example.yml up -d
+```
+
+#### Production (with external Ceph S3 storage)
+```bash
+# Configure S3_ENDPOINT_URL in .env to point to your Ceph cluster
+docker-compose -f docker-compose.production.yml up -d
 ```
 
 The API will be available at `http://localhost:8888`
 
+#### Storage Options
+- **Development**: Includes MinIO for local S3-compatible storage testing
+- **Production**: Uses your Ceph S3 cluster (configure endpoint in `.env`)
+- **Image Storage**: Raw 1:1 images stored without processing for TVDB compliance
+
 ### 4. Initialize Demo Keys
 
 ```bash
-docker-compose exec -T api python -m scripts.init_demo_keys
+# For development
+docker-compose -f docker-compose.example.yml exec -T api python -m scripts.init_demo_keys
+
+# For production  
+docker-compose -f docker-compose.production.yml exec -T api python -m scripts.init_demo_keys
 ```
 
 ### 5. Health Check

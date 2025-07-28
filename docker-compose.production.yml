@@ -1,0 +1,180 @@
+# TVDB Local Proxy - Production Docker Compose Configuration
+#
+# This configuration is optimized for production deployment with:
+# - No development volume mounts
+# - External Ceph S3 storage (no local MinIO)
+# - Production-ready container settings
+# - Health checks and restart policies
+# - No exposed database/redis ports for security
+
+networks:
+  tvdb-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+
+services:
+  # Main TVDB Proxy API
+  api:
+    build: .
+    container_name: tvdb-api
+    ports:
+      - "8888:8000"
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres@db:5432/tvdb_proxy
+      - REDIS_URL=redis://redis:6379/0
+    env_file:
+      - .env
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 4
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: '1.0'
+        reservations:
+          memory: 512M
+          cpus: '0.5'
+    networks:
+      - tvdb-network
+
+  # Background Worker for Image Sync and Data Processing
+  worker:
+    build: .
+    container_name: tvdb-worker
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres@db:5432/tvdb_proxy
+      - REDIS_URL=redis://redis:6379/0
+    env_file:
+      - .env
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: celery -A app.workers.celery_app worker --loglevel=info --concurrency=4
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: '1.0'
+        reservations:
+          memory: 256M
+          cpus: '0.25'
+    networks:
+      - tvdb-network
+
+  # Task Scheduler for Periodic Sync Operations
+  scheduler:
+    build: .
+    container_name: tvdb-scheduler
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres@db:5432/tvdb_proxy
+      - REDIS_URL=redis://redis:6379/0
+    env_file:
+      - .env
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: celery -A app.workers.celery_app beat --loglevel=info
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: '0.5'
+        reservations:
+          memory: 128M
+          cpus: '0.1'
+    networks:
+      - tvdb-network
+
+  # PostgreSQL Database
+  db:
+    image: postgres:15-alpine
+    container_name: tvdb-postgres
+    environment:
+      POSTGRES_DB: tvdb_proxy
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_INITDB_ARGS: "--auth-host=scram-sha-256"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: '1.0'
+        reservations:
+          memory: 512M
+          cpus: '0.5'
+    networks:
+      - tvdb-network
+
+  # Redis for Caching and Task Queue
+  redis:
+    image: redis:7-alpine
+    container_name: tvdb-redis
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: '0.5'
+        reservations:
+          memory: 128M
+          cpus: '0.1'
+    networks:
+      - tvdb-network
+
+# Production Notes:
+# 1. Configure your Ceph S3 endpoint in .env:
+#    S3_ENDPOINT_URL=https://your-ceph-cluster.example.com
+#    S3_ACCESS_KEY_ID=your_access_key
+#    S3_SECRET_ACCESS_KEY=your_secret_key
+#
+# 2. Use a reverse proxy (nginx/traefik) for:
+#    - SSL termination
+#    - Load balancing
+#    - Rate limiting
+#
+# 3. Consider external managed services for:
+#    - PostgreSQL (AWS RDS, Google Cloud SQL, etc.)
+#    - Redis (AWS ElastiCache, Google Memorystore, etc.)
+#
+# 4. Monitor with:
+#    - Application logs: docker logs tvdb-api
+#    - Worker logs: docker logs tvdb-worker
+#    - Health endpoints: curl http://localhost:8888/health

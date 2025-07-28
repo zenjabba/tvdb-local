@@ -1,0 +1,174 @@
+# TVDB Local Proxy - Complete Docker Compose Configuration
+# 
+# This example includes:
+# - Main TVDB proxy application with API endpoints
+# - Background workers for image sync and data processing  
+# - PostgreSQL database with persistent storage
+# - Redis for caching and task queuing
+# - MinIO for S3-compatible image storage (for testing/development)
+#
+# For production with Ceph S3:
+# - Remove the 'minio' service
+# - Update S3_ENDPOINT_URL in .env to point to your Ceph cluster
+# - Configure S3 credentials for your Ceph setup
+
+networks:
+  tvdb-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  minio_data:
+    driver: local
+
+services:
+  # Main TVDB Proxy API
+  api:
+    build: .
+    container_name: tvdb-api
+    ports:
+      - "8888:8000"  # API accessible at http://localhost:8888
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres@db:5432/tvdb_proxy
+      - REDIS_URL=redis://redis:6379/0
+    env_file:
+      - .env
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./app:/app/app  # Development: mount source for hot reload
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - tvdb-network
+
+  # Background Worker for Image Sync and Data Processing
+  worker:
+    build: .
+    container_name: tvdb-worker
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres@db:5432/tvdb_proxy
+      - REDIS_URL=redis://redis:6379/0
+    env_file:
+      - .env
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./app:/app/app  # Development: mount source for hot reload
+    command: celery -A app.workers.celery_app worker --loglevel=info
+    restart: unless-stopped
+    networks:
+      - tvdb-network
+
+  # Task Scheduler for Periodic Sync Operations
+  scheduler:
+    build: .
+    container_name: tvdb-scheduler
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres@db:5432/tvdb_proxy
+      - REDIS_URL=redis://redis:6379/0
+    env_file:
+      - .env
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./app:/app/app  # Development: mount source for hot reload
+    command: celery -A app.workers.celery_app beat --loglevel=info
+    restart: unless-stopped
+    networks:
+      - tvdb-network
+
+  # PostgreSQL Database
+  db:
+    image: postgres:15-alpine
+    container_name: tvdb-postgres
+    environment:
+      POSTGRES_DB: tvdb_proxy
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"  # Expose for external database tools (optional)
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - tvdb-network
+
+  # Redis for Caching and Task Queue
+  redis:
+    image: redis:7-alpine
+    container_name: tvdb-redis
+    ports:
+      - "6379:6379"  # Expose for external Redis tools (optional)
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - tvdb-network
+
+  # MinIO S3-Compatible Storage (for development/testing)
+  # For production, remove this service and use your Ceph S3 cluster
+  minio:
+    image: minio/minio:latest
+    container_name: tvdb-minio
+    ports:
+      - "9010:9000"  # S3 API endpoint
+      - "9011:9001"  # Web console at http://localhost:9011
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin123
+      MINIO_DEFAULT_BUCKETS: tvdb-images
+    volumes:
+      - minio_data:/data
+    command: server /data --console-address ":9001"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+    networks:
+      - tvdb-network
+
+# Optional: Reverse Proxy (uncomment if needed)
+# nginx:
+#   image: nginx:alpine
+#   container_name: tvdb-nginx
+#   ports:
+#     - "80:80"
+#     - "443:443"
+#   volumes:
+#     - ./nginx.conf:/etc/nginx/nginx.conf:ro
+#     - ./ssl:/etc/nginx/ssl:ro  # SSL certificates
+#   depends_on:
+#     - api
+#   restart: unless-stopped
+#   networks:
+#     - tvdb-network
