@@ -63,13 +63,11 @@ jobs:
         push: ${{ github.event_name != 'pull_request' }}
         tags: ${{ steps.meta.outputs.tags }}
         labels: ${{ steps.meta.outputs.labels }}
-        cache-from: type=gha
-        cache-to: type=gha,mode=max
         provenance: false
         build-args: |
-          BUILD_DATE=${{ fromJSON(steps.meta.outputs.json).labels['org.opencontainers.image.created'] }}
-          VERSION=${{ fromJSON(steps.meta.outputs.json).labels['org.opencontainers.image.version'] }}
-          REVISION=${{ fromJSON(steps.meta.outputs.json).labels['org.opencontainers.image.revision'] }}
+          BUILD_DATE=${{ fromJSON(steps.meta.outputs.json).labels['org.opencontainers.image.created'] || '' }}
+          VERSION=${{ fromJSON(steps.meta.outputs.json).labels['org.opencontainers.image.version'] || '' }}
+          REVISION=${{ fromJSON(steps.meta.outputs.json).labels['org.opencontainers.image.revision'] || '' }}
 
   build-worker:
     runs-on: ubuntu-latest
@@ -110,6 +108,12 @@ jobs:
           type=raw,value=latest,enable={{is_default_branch}}
           type=sha,prefix={{branch}}-,format=short
     
+    - name: Debug build info
+      run: |
+        echo "Building for platforms: linux/amd64,linux/arm64"
+        echo "Target: worker"
+        echo "Tags: ${{ steps.meta-worker.outputs.tags }}"
+    
     - name: Build and push worker image
       uses: docker/build-push-action@v5
       with:
@@ -118,11 +122,9 @@ jobs:
         push: ${{ github.event_name != 'pull_request' }}
         tags: ${{ steps.meta-worker.outputs.tags }}
         labels: ${{ steps.meta-worker.outputs.labels }}
-        cache-from: type=gha
-        cache-to: type=gha,mode=max
         target: worker
         provenance: false
         build-args: |
-          BUILD_DATE=${{ fromJSON(steps.meta-worker.outputs.json).labels['org.opencontainers.image.created'] }}
-          VERSION=${{ fromJSON(steps.meta-worker.outputs.json).labels['org.opencontainers.image.version'] }}
-          REVISION=${{ fromJSON(steps.meta-worker.outputs.json).labels['org.opencontainers.image.revision'] }}
+          BUILD_DATE=${{ fromJSON(steps.meta-worker.outputs.json).labels['org.opencontainers.image.created'] || '' }}
+          VERSION=${{ fromJSON(steps.meta-worker.outputs.json).labels['org.opencontainers.image.version'] || '' }}
+          REVISION=${{ fromJSON(steps.meta-worker.outputs.json).labels['org.opencontainers.image.revision'] || '' }}
