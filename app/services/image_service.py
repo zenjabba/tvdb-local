@@ -100,15 +100,7 @@ class ImageService:
                              content_type=content_type)
                 return None
             
-            # Check size limit
-            content_length = int(response.headers.get('content-length', 0))
-            max_size = settings.max_image_file_size_mb * 1024 * 1024
-            if content_length > max_size:
-                logger.warning("Image too large", 
-                             url=url, 
-                             size_mb=content_length / (1024 * 1024))
-                return None
-            
+            # No size limits - store 1:1 raw images regardless of size
             # Get file extension
             ext = self._get_file_extension(url, content_type)
             

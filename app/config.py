@@ -57,8 +57,7 @@ class Settings(BaseSettings):
     storage_backend: str = "s3"  # Options: "s3", "local", "none"
     local_storage_path: str = "/app/storage/images"
     
-    # Image Storage Configuration
-    max_image_file_size_mb: int = 50  # Increased for raw images
+    # Image Storage Configuration - No size limits for 1:1 raw storage
     
     # Image Sync Configuration
     image_sync_batch_size: int = 50
